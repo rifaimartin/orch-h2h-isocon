@@ -1,0 +1,4 @@
+apiVersion: v2
+name: h2h-isocon
+description: A Helm chart for h2h-isocon (H2H ISO 8583 BCA Digital Integration Service)
+version: 0.1.0

@@ -1,0 +1,84 @@
+##############################################
+# Adminer - Database Management Dashboard
+# Deploy: kubectl apply -f k8s/adminer.yaml
+# Akses : https://dskube-dev.dgcpdev.com/adminer
+##############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adminer
+  namespace: fund-dev-orch
+  labels:
+    app: adminer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: adminer
+  template:
+    metadata:
+      labels:
+        app: adminer
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: orch-dev
+                    operator: In
+                    values:
+                      - fund
+      containers:
+        - name: adminer
+          image: adminer:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ADMINER_DEFAULT_SERVER
+              value: "10.121.88.25"  # DB dev default, bisa diganti saat login
+            - name: ADMINER_DESIGN
+              value: "dracula"       # theme gelap biar enak
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adminer
+  namespace: fund-dev-orch
+  labels:
+    app: adminer
+spec:
+  selector:
+    app: adminer
+  ports:
+    - port: 8080
+      protocol: TCP
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: adminer-virtual
+  namespace: fund-dev-orch
+spec:
+  hosts:
+    - dskube-dev.dgcpdev.com
+  gateways:
+    - istio-system/dskube-dev-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /adminer
+      route:
+        - destination:
+            host: adminer
+            port:
+              number: 8080

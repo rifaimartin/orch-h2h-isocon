@@ -1,0 +1,65 @@
+service:
+  port: 8080
+  name: h2h-isocon
+  hc: /orch/h2h-isocon/actuator/health
+  image: ${CI_REGISTRY_IMAGE}:1.0
+  uid: 995
+  gid: 995
+environment:
+  nodeaffinityKey: orch-uat
+  nodeaffinityValue: fund
+  gatewayName: istio-system/dskube-uat-gateway
+  gatewayHost: dskube-uat.dgcpdev.com
+  podantiaffinity: false
+  namespace: fund-uat-orch
+hpa:
+  minreplicas: 1
+  maxreplicas: 1
+  reqcpu: 300m
+  reqmem: 512Mi
+  limcpu: 1
+  limmem: 2Gi
+  metrics:
+    utilizationCPU: 70
+    averageMem: 650Mi
+  behavior:
+    scaleUp:
+      eval: 150
+      podsize: 1
+      period: 100
+    scaleDown:
+      eval: 300
+      reducePercent: 50
+      period: 60
+mountHost:
+  apply: true
+  mounts:
+    - name: h2h-isocon-log
+      pathContainer: /h2h-isocon/log
+      pathHost: /bdb/k8s/log/h2h-isocon-uat
+mountNAS:
+  apply: false
+virtualService:
+  routes:
+    - prefix: /orch/h2h-isocon
+hostAliases:
+  apply: false
+  list: []
+spring:
+  profile: uat
+envFrom:
+  configMapRef:
+    name: h2h-isocon
+certificate:
+  mountExternal: false
+  mountPath: /opt/certificate
+  files: []
+vault:
+  uri: "CHANGE_ME_VAULT_URI"
+  roleId: "CHANGE_ME_UAT_ROLE_ID"
+  secretId: "CHANGE_ME_UAT_SECRET_ID"
+  appName: "h2h-uat/h2h-isocon"
+adminer:
+  enabled: false
+  defaultServer: ""
+ 

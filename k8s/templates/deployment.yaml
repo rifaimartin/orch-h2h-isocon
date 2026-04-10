@@ -1,0 +1,164 @@
+#no-change
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.service.name }}
+  namespace: {{ .Values.environment.namespace }}
+  labels:
+    app: {{ .Values.service.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.service.name }}
+  replicas: {{ .Values.hpa.minreplicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      annotations:
+        restart/timestamp: {{ now | quote }}
+      labels:
+        app: {{ .Values.service.name }}
+    spec:
+      {{- if and .Values.hostAliases.apply .Values.hostAliases.list }}
+      hostAliases:
+      {{- range .Values.hostAliases.list }}
+      - ip: "{{ .ip }}"
+        hostnames:
+        {{- range .hostnames }}
+          - "{{ . }}"
+        {{- end }}
+      {{- end }}
+      {{- end }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: {{ .Values.environment.nodeaffinityKey }}
+                    operator: In
+                    values:
+                      - {{ .Values.environment.nodeaffinityValue }}
+      {{- if .Values.environment.podantiaffinity }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: {{ .Values.service.name }}
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ .Values.service.name }}
+      {{- end }}
+      imagePullSecrets:
+      - name: secret-gitlab-{{ .Values.service.name }}
+      {{- if .Values.mountHost.apply }}
+      initContainers:
+      - name: mounthost-perm
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - >
+            {{- range .Values.mountHost.mounts }}
+            chown -R {{ $.Values.service.uid }}:{{ $.Values.service.gid }} {{ .pathContainer }} || true;
+            {{- end }}
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        {{- if .Values.mountHost.apply }}
+          {{- range .Values.mountHost.mounts }}
+          - name: {{ .name }}
+            mountPath: {{ .pathContainer }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.service.name }}-pods
+        image: {{ .Values.service.image }}
+        envFrom:
+          - configMapRef:
+              name: {{ .Values.envFrom.configMapRef.name }}
+        imagePullPolicy: Always
+        securityContext:
+          runAsUser: {{ .Values.service.uid }}
+          runAsGroup: {{ .Values.service.gid }}
+        resources:
+          limits:
+             cpu: {{ .Values.hpa.limcpu }}
+             memory: {{ .Values.hpa.limmem }}
+          requests:
+            cpu: {{ .Values.hpa.reqcpu }}
+            memory: {{ .Values.hpa.reqmem }}
+        livenessProbe:
+          initialDelaySeconds: 90
+          timeoutSeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          failureThreshold: 3
+          httpGet:
+            path: {{ .Values.service.hc }}
+            port: {{ .Values.service.port }}
+        readinessProbe:
+          initialDelaySeconds: 60
+          timeoutSeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          failureThreshold: 3
+          httpGet:
+            path: {{ .Values.service.hc }}
+            port: {{ .Values.service.port }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+        {{- if or .Values.mountHost.apply .Values.mountNAS.apply .Values.certificate.mountExternal }}
+        volumeMounts:
+        {{- if .Values.mountHost.apply }}
+          {{- range .Values.mountHost.mounts }}
+          - name: {{ .name }}
+            mountPath: {{ .pathContainer }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.mountNAS.apply }}
+          {{- range .Values.mountNAS.mounts }}
+          - name: {{ .name }}
+            mountPath: {{ .pathContainer }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.certificate.mountExternal }}
+          - name: certs-volume
+            mountPath: {{ .Values.certificate.mountPath }}
+            readOnly: true
+        {{- end }}
+        {{- end }}
+      {{- if or .Values.mountHost.apply .Values.mountNAS.apply .Values.certificate.mountExternal }}
+      volumes:
+      {{- if .Values.mountHost.apply }}
+        {{- range .Values.mountHost.mounts }}
+        - name: {{ .name }}
+          hostPath:
+            path: {{ .pathHost }}
+            type: DirectoryOrCreate
+        {{- end }}
+      {{- end }}
+      {{- if .Values.mountNAS.apply }}
+        {{- range .Values.mountNAS.mounts }}
+        - name: {{ .name }}
+          persistentVolumeClaim:
+            claimName: {{ .pvcName }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.certificate.mountExternal }}
+        - name: certs-volume
+          secret:
+            secretName: {{ .Values.service.name }}-certs
+      {{- end }}
+      {{- end }}

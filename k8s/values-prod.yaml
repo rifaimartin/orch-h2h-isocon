@@ -1,0 +1,66 @@
+service:
+  port: 8080
+  name: h2h-isocon
+  hc: /orch/h2h-isocon/actuator/health
+  image: ${CI_REGISTRY_IMAGE}:1.0
+  uid: 995
+  gid: 995
+environment:
+  # TODO: Confirm production node affinity key and value with infra team
+  nodeaffinityKey: orch-uat
+  nodeaffinityValue: fund
+  # TODO: Confirm production gateway name and host/domain with infra team
+  gatewayName: dskube-prod-gateway
+  gatewayHost: dskube-prod.dgcpdev.com
+  podantiaffinity: true
+  namespace: fund-prod-h2h
+hpa:
+  minreplicas: 2
+  maxreplicas: 4
+  reqcpu: 500m
+  reqmem: 1Gi
+  limcpu: 2
+  limmem: 4Gi
+  metrics:
+    utilizationCPU: 70
+    averageMem: 1Gi
+  behavior:
+    scaleUp:
+      eval: 150
+      podsize: 1
+      period: 100
+    scaleDown:
+      eval: 300
+      reducePercent: 50
+      period: 60
+mountHost:
+  apply: true
+  mounts:
+    - name: h2h-isocon-log
+      pathContainer: /h2h-isocon/log
+      pathHost: /bdb/k8s/log/h2h-isocon-prod
+mountNAS:
+  apply: false
+virtualService:
+  routes:
+    - prefix: /orch/h2h-isocon
+hostAliases:
+  apply: false
+  list: []
+spring:
+  profile: prod
+envFrom:
+  configMapRef:
+    name: h2h-isocon
+certificate:
+  mountExternal: false
+  mountPath: /opt/certificate
+  files: []
+vault:
+  uri: "CHANGE_ME_VAULT_URI"
+  roleId: "CHANGE_ME_PROD_ROLE_ID"
+  secretId: "CHANGE_ME_PROD_SECRET_ID"
+  appName: "h2h-prod/h2h-isocon"
+adminer:
+  enabled: false
+  defaultServer: ""

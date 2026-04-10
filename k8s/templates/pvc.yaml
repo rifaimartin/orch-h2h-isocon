@@ -1,0 +1,17 @@
+{{- if .Values.mountNAS.apply }}
+{{- range .Values.mountNAS.mounts }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .pvcName }}
+  namespace: {{ $.Values.environment.namespace }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .storageMatch }}
+  storageClassName: ""
+---
+{{- end }}
+{{- end }}

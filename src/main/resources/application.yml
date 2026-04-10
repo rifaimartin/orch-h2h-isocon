@@ -1,0 +1,40 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /orch/h2h-isocon
+
+spring:
+  application:
+    name: h2h-iso8583-bcad
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+h2h:
+  bca:
+    host: 127.0.0.1
+    port: 7000
+    connect-timeout-ms: 5000
+    read-timeout-ms: 25000
+    reconnect-delay-ms: 5000
+    max-retries: 3
+    terminal-id: BCAD0001
+    merchant-id: "BCADIGITAL001  "
+    institution-id: "014"
+
+logging:
+  level:
+    root: INFO
+    com.bcad.h2h.iso8583: DEBUG

@@ -1,0 +1,82 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Compiled class files
+*.class
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Eclipse
+.classpath
+.project
+.settings/
+*.launch
+
+# NetBeans
+nbproject/
+.nb-gradle/
+*.nbattrs
+
+# Misc
+.gradle/
+.env
+.env.local
+*.log
+*.pid
+
+# OS files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Local application configuration
+application-local.yml
+application-prod.yml
+
+# Test coverage
+jacoco.exec
+.coverage
+coverage/
+
+# Build output
+build/
+out/
+dist/
+
+# Documentation & Generated files
+docs/
+.github/
+
+# Node (for docs/scripts if any)
+node_modules/
+dist/
+.next/

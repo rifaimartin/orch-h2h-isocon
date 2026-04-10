@@ -1,0 +1,13 @@
+h2h:
+  bca:
+    host: ${H2H_BCA_HOST:127.0.0.1}
+    port: ${H2H_BCA_PORT:7000}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 25000
+    reconnect-delay-ms: 5000
+    max-retries: 3
+
+logging:
+  level:
+    root: INFO
+    com.bcad.h2h.iso8583: DEBUG

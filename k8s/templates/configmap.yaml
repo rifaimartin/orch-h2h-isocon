@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.envFrom.configMapRef.name }}
+  namespace: {{ .Values.environment.namespace }}
+data:
+  SPRING_PROFILES_ACTIVE: {{ .Values.spring.profile | quote }}
+  # CERT_CIS_PATH: {{ .Values.certificate.cisPath | quote }}
+  VAULT_ROLE_ID: {{ .Values.vault.roleId | quote }}
+  VAULT_SECRET_ID: {{ .Values.vault.secretId | quote }}
+  VAULT_URI: {{ .Values.vault.uri | quote }}
+  VAULT_APP_NAME: {{ .Values.vault.appName | quote }}

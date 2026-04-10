@@ -1,0 +1,179 @@
+package com.bcad.h2h.iso8583.iso;
+
+import com.bcad.h2h.iso8583.exception.IsoMessageParseException;
+import com.bcad.h2h.iso8583.iso.packager.BcadIsoPackager;
+import com.bcad.h2h.iso8583.iso.packager.FieldDefinition;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.TreeSet;
+
+@Slf4j
+@Component
+public class IsoEncoder {
+
+    private static final BcadIsoPackager PACKAGER = BcadIsoPackager.getInstance();
+
+    public byte[] encode(IsoMessage message) {
+        try {
+            ByteArrayOutputStream body = new ByteArrayOutputStream();
+
+            // Write MTI (4 bytes ASCII)
+            body.write(message.getMti().getBytes(StandardCharsets.ISO_8859_1));
+
+            // Build bitmaps
+            TreeSet<Integer> fieldNums = new TreeSet<>(message.getBitmapFields());
+            boolean needSecondary = fieldNums.stream().anyMatch(f -> f > 64);
+
+            byte[] primaryBitmap = new byte[8];
+            byte[] secondaryBitmap = new byte[8];
+
+            if (needSecondary) {
+                primaryBitmap[0] |= (byte) 0x80;
+            }
+
+            for (int fieldNum : fieldNums) {
+                if (fieldNum < 1 || fieldNum > 128) continue;
+                if (fieldNum == 1 || fieldNum == 65) continue;
+
+                if (fieldNum <= 64) {
+                    int bitPos = fieldNum - 1;
+                    int byteIndex = bitPos / 8;
+                    int bitIndex = 7 - (bitPos % 8);
+                    primaryBitmap[byteIndex] |= (byte) (1 << bitIndex);
+                } else {
+                    int bitPos = fieldNum - 65;
+                    int byteIndex = bitPos / 8;
+                    int bitIndex = 7 - (bitPos % 8);
+                    secondaryBitmap[byteIndex] |= (byte) (1 << bitIndex);
+                }
+            }
+
+            body.write(primaryBitmap);
+            if (needSecondary) {
+                body.write(secondaryBitmap);
+            }
+
+            // Write each field
+            for (int fieldNum : fieldNums) {
+                if (fieldNum == 1 || fieldNum == 65) continue;
+
+                String value = message.getField(fieldNum);
+                if (value == null) continue;
+
+                FieldDefinition def = PACKAGER.getFieldDefinition(fieldNum);
+                if (def == null) {
+                    log.warn("No field definition for DE{}, skipping", fieldNum);
+                    continue;
+                }
+
+                byte[] fieldBytes = encodeField(fieldNum, def, value);
+                body.write(fieldBytes);
+            }
+
+            byte[] bodyBytes = body.toByteArray();
+
+            // Prepend 2-byte big-endian length header
+            ByteArrayOutputStream finalMsg = new ByteArrayOutputStream();
+            int length = bodyBytes.length;
+            finalMsg.write((length >> 8) & 0xFF);
+            finalMsg.write(length & 0xFF);
+            finalMsg.write(bodyBytes);
+
+            byte[] result = finalMsg.toByteArray();
+            log.debug("Encoded ISO message MTI={} length={} HEX[{}]",
+                    message.getMti(), length, bytesToHex(result));
+            return result;
+
+        } catch (IOException e) {
+            throw new IsoMessageParseException("Failed to encode ISO message: " + e.getMessage(), e);
+        }
+    }
+
+    private byte[] encodeField(int fieldNum, FieldDefinition def, String value) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        switch (def.getType()) {
+            case NUMERIC -> {
+                String padded = padLeft(value, def.getMaxLength(), '0');
+                if (padded.length() > def.getMaxLength()) {
+                    padded = padded.substring(padded.length() - def.getMaxLength());
+                }
+                out.write(padded.getBytes(StandardCharsets.ISO_8859_1));
+            }
+            case ALPHA -> {
+                String padded = padRight(value, def.getMaxLength(), ' ');
+                if (padded.length() > def.getMaxLength()) {
+                    padded = padded.substring(0, def.getMaxLength());
+                }
+                out.write(padded.getBytes(StandardCharsets.ISO_8859_1));
+            }
+            case ALPHANUM -> {
+                String padded = padRight(value, def.getMaxLength(), ' ');
+                if (padded.length() > def.getMaxLength()) {
+                    padded = padded.substring(0, def.getMaxLength());
+                }
+                out.write(padded.getBytes(StandardCharsets.ISO_8859_1));
+            }
+            case LLVAR -> {
+                byte[] data = value.getBytes(StandardCharsets.ISO_8859_1);
+                String lenStr = String.format("%02d", data.length);
+                out.write(lenStr.getBytes(StandardCharsets.ISO_8859_1));
+                out.write(data);
+            }
+            case LLLVAR -> {
+                byte[] data = value.getBytes(StandardCharsets.ISO_8859_1);
+                String lenStr = String.format("%03d", data.length);
+                out.write(lenStr.getBytes(StandardCharsets.ISO_8859_1));
+                out.write(data);
+            }
+            case BINARY -> {
+                byte[] data = hexToBytes(value);
+                out.write(data);
+            }
+            default -> out.write(value.getBytes(StandardCharsets.ISO_8859_1));
+        }
+
+        return out.toByteArray();
+    }
+
+    private String padLeft(String value, int length, char padChar) {
+        if (value == null) value = "";
+        if (value.length() >= length) return value;
+        StringBuilder sb = new StringBuilder();
+        for (int i = value.length(); i < length; i++) sb.append(padChar);
+        sb.append(value);
+        return sb.toString();
+    }
+
+    private String padRight(String value, int length, char padChar) {
+        if (value == null) value = "";
+        if (value.length() >= length) return value;
+        StringBuilder sb = new StringBuilder(value);
+        for (int i = value.length(); i < length; i++) sb.append(padChar);
+        return sb.toString();
+    }
+
+    public static String bytesToHex(byte[] bytes) {
+        if (bytes == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X", b));
+        }
+        return sb.toString();
+    }
+
+    private byte[] hexToBytes(String hex) {
+        if (hex == null || hex.isEmpty()) return new byte[0];
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
+        }
+        return data;
+    }
+}

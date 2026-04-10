@@ -1,0 +1,257 @@
+stages:
+  - versioning
+  - build-java
+  - build-image
+  - deploy
+  - pushversioning
+
+variables:
+  VERSIONING_RULES: "breaking|change|major:MAJOR,feat|add|update:MINOR,.*:PATCH"
+  GIT_PUSH_TOKEN: "$GITLAB_PAT" 
+  JAR_NAME: "h2h-iso8583-bcad-1.0.0-SNAPSHOT.jar" 
+  JAVAHOME: "/Users/itdevcicd/Downloads/openlogic-openjdk-21.0.8+9-mac-x64/jdk-21.0.8.jdk/Contents/Home" 
+  BUILD_OUTPUT: "$CI_PROJECT_DIR/target" 
+  HOST_DIR: "/Users/itdevcicd/builds/framework-tmp/h2h-isocon" 
+  SERVICE_NAME: "orch-h2h-isocon" 
+  SITE:
+    value: "wsa"
+    options:
+      - "wsa"
+      - "wsby"
+      - "gac"      
+    description: "Site for properties"
+  PROD_TAG:
+    value: ""
+    description: "Tag version for production want to be set, ex: v1.0.0 . later it dynamically $SITE-v1.0.0"
+
+workflow:
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "DEV" || $CI_COMMIT_BRANCH == "UAT" || $CI_COMMIT_BRANCH == "master")) 
+
+auto-tag:
+  stage: versioning
+  tags:
+    - middlewarerunner 
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "DEV" || $CI_COMMIT_BRANCH == "UAT")) 
+  script:
+    - git fetch --all --tags || true    
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "DEV" ]; then
+        TAG_PREFIX="dev-"
+        git tag -l "v*" | xargs -r git tag -d || true
+      elif [ "$CI_COMMIT_BRANCH" == "UAT" ]; then
+        TAG_PREFIX="uat-"
+        git tag -l "v*" | xargs -r git tag -d || true
+      else
+        TAG_PREFIX=""
+        git tag -l "*-v*" | xargs -r git tag -d || true
+      fi
+    - LATEST_TAG=$(git tag -l "${TAG_PREFIX}v*" | sort -V | tail -n1)
+    - if [ -z "$LATEST_TAG" ]; then LATEST_TAG="${TAG_PREFIX}v0.0.0"; fi
+    - echo "Using latest tag for $CI_COMMIT_BRANCH $LATEST_TAG"
+    - COMMIT_MSG=$(git log -1 --pretty=%B)
+    - VERSION_PART=$(echo "$LATEST_TAG" | sed "s|^${TAG_PREFIX}||")
+    - MAJOR=$(echo "$VERSION_PART" | cut -d. -f1 | tr -d 'v')
+    - MINOR=$(echo "$VERSION_PART" | cut -d. -f2)
+    - PATCH=$(echo "$VERSION_PART" | cut -d. -f3)
+    - IFS=','
+    - |
+      for rule in $VERSIONING_RULES; do
+        PATTERN=$(echo "$rule" | cut -d: -f1)
+        INCREMENT=$(echo "$rule" | cut -d: -f2)
+        if echo "$COMMIT_MSG" | grep -iqE "$PATTERN"; then
+          case "$INCREMENT" in
+            MAJOR) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0; break;;
+            MINOR) MINOR=$((MINOR + 1)); PATCH=0; break;;
+            PATCH) PATCH=$((PATCH + 1)); break;;
+          esac
+        fi
+      done
+    - NEW_TAG="${TAG_PREFIX}v$MAJOR.$MINOR.$PATCH"
+    - if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+    -   echo "Tag $NEW_TAG already exists, incrementing patch version"
+    -   PATCH=$((PATCH + 1))
+    -   NEW_TAG="${TAG_PREFIX}v$MAJOR.$MINOR.$PATCH"
+    - fi
+    - echo "Created new tag $NEW_TAG"
+    - echo "NEW_TAG=$NEW_TAG" > $CI_PROJECT_DIR/new_tag.env
+  artifacts:
+    paths:
+      - new_tag.env
+    reports:
+      dotenv: new_tag.env
+
+build-java:
+  stage: build-java
+  tags:
+    - middlewarerunner
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "DEV" || $CI_COMMIT_BRANCH == "UAT")) 
+  before_script:
+    - echo "build java project before script start"
+    - export JAVA_HOME=$JAVAHOME
+    - echo "build java project before script end"
+  script:
+    - echo "build java project script start"    
+    - export PATH=$JAVA_HOME/bin:$PATH
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "UAT" ]; then
+        PATH_ENV="uat"
+      elif [ "$CI_COMMIT_BRANCH" == "DEV" ]; then
+        PATH_ENV="dev"
+      else
+        PATH_ENV="prod"
+      fi     
+    - mvn clean package -Denvironment=$PATH_ENV 
+    - echo "build java project script end"
+  after_script:
+    - |
+      if [[ "$CI_COMMIT_BRANCH" == "DEV" || "$CI_COMMIT_BRANCH" == "UAT" ]]; then
+        PATH_ENV="nonprod"              
+      else
+        PATH_ENV="prod"
+      fi            
+      #developer -> infoin cp apa aja perlu buat build docker file nantinya
+      cp $BUILD_OUTPUT/$JAR_NAME $HOST_DIR/$PATH_ENV/$JAR_NAME
+      echo "Copied $JAR_NAME to $HOST_DIR/$PATH_ENV/"
+      ls -la $HOST_DIR/$PATH_ENV/
+      echo "build java project after script end"
+
+build-java-prod:
+  stage: build-java
+  tags:
+    - middlewarerunner
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "master")) 
+  before_script:
+    - echo "build java project before script start"
+    - export JAVA_HOME=$JAVAHOME
+    - echo "build java project before script end"
+  script:
+    - echo "build java project script start"    
+    - export PATH=$JAVA_HOME/bin:$PATH
+    - PATH_ENV="prod"
+    - mvn clean package -Denvironment=$PATH_ENV 
+    - echo "build java project script end"
+  after_script:
+    - | 
+      if [[ "$CI_COMMIT_BRANCH" == "DEV" || "$CI_COMMIT_BRANCH" == "UAT" ]]; then
+        PATH_ENV="nonprod"              
+      else
+        PATH_ENV="prod"
+      fi            
+      cp $BUILD_OUTPUT/$JAR_NAME $HOST_DIR/$PATH_ENV/$SITE/$JAR_NAME
+      echo "Copied $JAR_NAME to $HOST_DIR/$PATH_ENV/$SITE"
+      ls -la $HOST_DIR/$PATH_ENV/$SITE
+      echo "build java project after script end"
+
+build-image:
+  stage: build-image
+  tags:
+    - middlewarerunner
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "DEV" || $CI_COMMIT_BRANCH == "UAT"))
+  before_script:
+    - echo "build image before script start"
+    - |
+      if [[ "$CI_COMMIT_BRANCH" == "DEV" || "$CI_COMMIT_BRANCH" == "UAT" ]]; then
+        PATH_ENV="nonprod"      
+      else
+        PATH_ENV="prod"
+      fi    
+    - cp $CI_PROJECT_DIR/Dockerfile $HOST_DIR/$PATH_ENV/Dockerfile
+    - cd $HOST_DIR/$PATH_ENV/
+    - CI_REGISTRY=gitlab.dgcpdev.com:5050
+    - CI_REGISTRY_IMAGE=gitlab.dgcpdev.com:5050/framework/h2h-isocon 
+    - CI_REGISTRY_USER=$REGISTRY_USER_GCP 
+    - CI_REGISTRY_PASSWORD=$REGISTRY_PASSWORD_GCP 
+  script:
+    - echo "build image before script end"
+    - echo -n $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - echo "build image script start"
+    - docker build --platform=linux/amd64 --tag $CI_REGISTRY_IMAGE:$NEW_TAG -f Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:$NEW_TAG
+    - echo "build image script end!"
+
+build-image-prod:
+  stage: build-image
+  tags:
+    - middlewarerunner
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "master"))
+  before_script:
+    - echo "build image before script start"
+    - PATH_ENV="prod"            
+    - mkdir -p $HOST_DIR/$PATH_ENV/$SITE
+    - cp $CI_PROJECT_DIR/Dockerfile $HOST_DIR/$PATH_ENV/$SITE/Dockerfile
+    - cd $HOST_DIR/$PATH_ENV/$SITE    
+  script:
+    - echo "build image before script end"    
+    - echo -n $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - echo "build image script start"
+    - docker build --platform=linux/amd64 --tag $CI_REGISTRY_IMAGE:$SITE-$PROD_TAG -f Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:$SITE-$PROD_TAG
+    - echo "build image script end!"
+    
+deploy:
+  stage: deploy
+  tags:
+    - middlewarerunner
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "DEV" || $CI_COMMIT_BRANCH == "UAT"))
+  before_script: |    
+    echo $NEW_TAG
+    VERSION_ONLY=${NEW_TAG#*-}    
+    # pull helm template from centralize      
+    if [ "$CI_COMMIT_BRANCH" == "UAT" ]; then
+        PATH_ENV="uat"
+        BRANCH_HELM="staging"
+        ENV_HELM="uat"
+    elif [ "$CI_COMMIT_BRANCH" == "DEV" ]; then
+        PATH_ENV="dev"
+        BRANCH_HELM="development"
+        ENV_HELM="dev"
+    else
+        PATH_ENV="prod"
+        BRANCH_HELM=""
+        ENV_HELM=""
+    fi
+    git clone --branch $BRANCH_HELM --single-branch https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab/k8s/helm-centralized/itds.git    
+    cd itds/$SERVICE_NAME
+    NAMESPACE=$(grep 'namespace:' k8s/values-$ENV_HELM.yaml | awk '{print $2}')
+    SERVICE_NAME=$(awk '/service:/ {found=1} found && /name:/ {print $2; exit}' k8s/values-$ENV_HELM.yaml )
+    CI_REGISTRY_IMAGE=gitlab.dgcpdev.com:5050/framework/h2h-isocon 
+  script:    
+    - cd $HOME_DIR/master/jenkins-script/run_jenkins    
+   
+    - ./run_jenkins_job_framework-custom-repository.sh $CI_COMMIT_BRANCH $CI_PROJECT_ID $PATH_JOB_JENKINS $CI_REGISTRY_IMAGE $SERVICE_NAME $NAMESPACE $NEW_TAG $BRANCH_HELM
+
+save-tag:
+  stage: pushversioning
+  tags:
+    - middlewarerunner
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "DEV" || $CI_COMMIT_BRANCH == "UAT"))
+  script:
+    - echo "Pushing tag $NEW_TAG"
+    - git tag -l "v*" | xargs -r git tag -d || true
+    - git fetch --all --tags || true
+    - git tag "$NEW_TAG"
+    - git push -f https://${CI_SERVER_HOST}:${GIT_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "$NEW_TAG"
+
+save-tag-prod:
+  stage: pushversioning
+  rules:
+    - if: (($CI_PIPELINE_SOURCE == "web") && ($CI_COMMIT_BRANCH == "master"))
+  tags:
+    - middlewarerunner
+  before_script :
+  script:
+    - echo "Pushing tag $SITE-$PROD_TAG"    
+    - git tag -l "*-v*" | xargs -r git tag -d || true    
+    - git fetch --all --tags || true
+    # Create and push the new tag with force if needed
+    - git tag "$SITE-$PROD_TAG"
+    - git push -f https://${CI_SERVER_HOST}:${GIT_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "$SITE-$PROD_TAG"
+    - echo "Tag $SITE-$PROD_TAG pushed successfully!"

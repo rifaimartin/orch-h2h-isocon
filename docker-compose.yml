@@ -1,0 +1,19 @@
+services:
+  h2h-isocon:
+    build: .
+    image: gitlab.dgcpdev.com:5050/h2h/h2h-isocon:latest
+    container_name: h2h-isocon
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./logs:/h2h-isocon/log
+    environment:
+      - TZ=Asia/Jakarta
+      - SPRING_PROFILES_ACTIVE=local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/orch/h2h-isocon/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped

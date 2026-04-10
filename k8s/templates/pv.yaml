@@ -1,0 +1,19 @@
+{{- if .Values.mountNAS.apply }}
+{{- range .Values.mountNAS.mounts }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .pvName }}
+  namespace: {{ $.Values.environment.namespace }}
+spec:
+  capacity:
+    storage: {{ .storageMatch }}
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: {{ .ipNAS }}
+    path: {{ .pathNAS }}
+  persistentVolumeReclaimPolicy: Retain
+---
+{{- end }}
+{{- end }}
