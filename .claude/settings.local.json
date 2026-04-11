@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn:*)",
+      "Bash(ls:*)",
+      "Bash(jar tf:*)",
+      "Bash(java:*)",
+      "Bash(curl -s https://repo1.maven.org/maven2/org/springframework/boot/spring-boot-starter-parent/maven-metadata.xml)",
+      "Bash(grep -E \"\\\\.java$|\\\\.yml$|\\\\.properties$|src/\")",
+      "Bash(git ls-tree:*)",
+      "Bash(grep -E \"\\\\.\\(java|yml|properties|xml\\)$\")",
+      "Bash(docker-compose up:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(git commit:*)",
+      "Bash(rtk git:*)",
+      "Bash(git:*)",
+      "Bash(where java:*)",
+      "Bash(command -v java)",
+      "Bash(cmd.exe /c \"java --version 2>&1\")",
+      "Bash(cmd.exe /c \"where java 2>&1\")",
+      "Bash(reg query:*)",
+      "Bash(powershell:*)",
+      "Read(//c/tools//**)",
+      "Read(//c/tools/**)",
+      "Bash(./mvnw dependency:resolve -q)",
+      "Bash(./mvnw dependency:tree -Dincludes=io.swagger.core.v3 -q)",
+      "Bash(./mvnw dependency:tree)",
+      "Bash(xargs grep:*)",
+      "Bash(taskkill /F /IM java.exe)",
+      "Bash(taskkill /F /IM javaw.exe)",
+      "Bash(taskkill //F //IM java.exe)",
+      "Bash(taskkill //F //IM javaw.exe)",
+      "Bash(rm -rf \"C:/Users/acade/AppData/Roaming/Code/User/workspaceStorage/9a96ce6bcbd6ff950588efcaa66305a1/redhat.java/\")",
+      "Bash(rm -rf \"C:/Users/acade/AppData/Roaming/Code/User/globalStorage/redhat.java/\")",
+      "Bash(tasklist)",
+      "Bash(wmic process:*)",
+      "Bash(tasklist /fi \"imagename eq Code.exe\" /v)",
+      "Bash(cmd:*)"
+    ]
+  }
+}
