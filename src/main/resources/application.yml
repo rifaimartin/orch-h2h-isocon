@@ -2,6 +2,10 @@ server:
   port: 8080
   servlet:
     context-path: /orch/h2h-isocon
+  tomcat:
+    threads:
+      max: 400
+      min-spare: 50
 
 spring:
   application:
