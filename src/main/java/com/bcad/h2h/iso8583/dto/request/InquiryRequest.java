@@ -51,4 +51,10 @@ public class InquiryRequest {
     @NotBlank(message = "Merchant ID is required")
     @Schema(description = "Merchant ID (DE42, 15 karakter)", example = "BCADIGITAL001  ")
     private String merchantId;
+
+    @Schema(description = "RRN (DE37) dikirim dari fund-transfer, 12 digit", example = "260411000001")
+    private String rrn;
+
+    @Schema(description = "STAN (DE11) dikirim dari fund-transfer, 6 digit", example = "000001")
+    private String stan;
 }
