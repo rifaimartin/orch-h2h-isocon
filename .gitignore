@@ -80,3 +80,7 @@ docs/
 node_modules/
 dist/
 .next/
+
+.claude
+.claude-plugin
+logs

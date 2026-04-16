@@ -1,7 +1,7 @@
 h2h:
   bca:
-    host: ${H2H_BCA_HOST:127.0.0.1}
-    port: ${H2H_BCA_PORT:7000}
+    host: ${H2H_BCA_HOST:10.121.91.205}
+    port: ${H2H_BCA_PORT:60024}
     connect-timeout-ms: 5000
     read-timeout-ms: 25000
     reconnect-delay-ms: 5000

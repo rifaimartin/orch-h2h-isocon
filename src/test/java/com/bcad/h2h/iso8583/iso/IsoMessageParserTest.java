@@ -1,5 +1,6 @@
 package com.bcad.h2h.iso8583.iso;
 
+import com.bcad.h2h.iso8583.config.TcpSocketProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,8 +17,10 @@ class IsoMessageParserTest {
 
     @BeforeEach
     void setUp() {
-        encoder = new IsoEncoder();
-        decoder = new IsoDecoder();
+        TcpSocketProperties props = new TcpSocketProperties();
+        props.setIsoHeader(""); // no ISO header for unit tests
+        encoder = new IsoEncoder(props);
+        decoder = new IsoDecoder(props);
     }
 
     @Test
@@ -153,5 +156,84 @@ class IsoMessageParserTest {
         msg.removeField(70);
         assertFalse(msg.hasField(70));
         assertNull(msg.getField(70));
+    }
+
+    @Test
+    @DisplayName("Encode/decode round-trip WITH ISO header + hex bitmap (BASE24 BCAD)")
+    void encodeThenDecodeWithIsoHeader() {
+        TcpSocketProperties headerProps = new TcpSocketProperties();
+        headerProps.setIsoHeader("ISO005000060");
+        headerProps.setHexBitmap(true);
+        IsoEncoder headerEncoder = new IsoEncoder(headerProps);
+        IsoDecoder headerDecoder = new IsoDecoder(headerProps);
+
+        // Build 0800 Logon
+        IsoMessage original = new IsoMessage("0800");
+        original.setField(7, "0415163148");
+        original.setField(11, "000001");
+        original.setField(70, "001");
+
+        byte[] encoded = headerEncoder.encode(original);
+        assertNotNull(encoded);
+
+        // Verify ISO header "ISO005000060" is present after 2-byte length
+        String bodyStr = new String(encoded, 2, encoded.length - 2, java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(bodyStr.startsWith("ISO005000060"), "ISO header must be prepended");
+
+        // Verify bitmap is hex ASCII (all printable), NOT binary
+        // After header(12) + MTI(4) = offset 16 from body start
+        String bitmapArea = bodyStr.substring(16, 48); // 32 chars for full hex bitmap
+        assertTrue(bitmapArea.matches("[0-9A-F]+"), "Bitmap must be hex ASCII: " + bitmapArea);
+
+        // Verify entire body is printable ASCII (no binary bytes)
+        for (int i = 2; i < encoded.length; i++) {
+            assertTrue(encoded[i] >= 0x20 && encoded[i] < 0x7F,
+                    "Byte at pos " + i + " must be printable ASCII, got: 0x" + String.format("%02X", encoded[i]));
+        }
+
+        // Verify 2-byte length includes header
+        int declaredLength = ((encoded[0] & 0xFF) << 8) | (encoded[1] & 0xFF);
+        assertEquals(encoded.length - 2, declaredLength);
+
+        // Decode must skip the header and parse correctly
+        IsoMessage decoded = headerDecoder.decode(encoded);
+        assertNotNull(decoded);
+        assertEquals("0800", decoded.getMti());
+        assertEquals("0415163148", decoded.getField(7).trim());
+        assertEquals("000001", decoded.getField(11).trim());
+        assertEquals("001", decoded.getField(70).trim());
+    }
+
+    @Test
+    @DisplayName("BCA Logon format: ISO0050000600800[hex bitmap]...")
+    void bcaLogonFormat() {
+        TcpSocketProperties bcaProps = new TcpSocketProperties();
+        bcaProps.setIsoHeader("ISO005000060");
+        bcaProps.setHexBitmap(true);
+        IsoEncoder bcaEncoder = new IsoEncoder(bcaProps);
+
+        // Build 0800 Logon — same as BCA example
+        IsoMessage logon = new IsoMessage("0800");
+        logon.setField(7, "0218073507");  // DE7:  MMDDhhmmss
+        logon.setField(11, "000050");     // DE11: STAN
+        logon.setField(70, "001");        // DE70: Logon
+
+        byte[] encoded = bcaEncoder.encode(logon);
+        // Skip 2-byte length header for wire content
+        String wire = new String(encoded, 2, encoded.length - 2, java.nio.charset.StandardCharsets.ISO_8859_1);
+
+        // Must match BCA expected format:
+        // ISO0050000600800 8220000000000000 0400000000000000 0218073507 000050 001
+        assertEquals("ISO005000060", wire.substring(0, 12), "ISO header");
+        assertEquals("0800", wire.substring(12, 16), "MTI");
+        assertEquals("8220000000000000", wire.substring(16, 32), "Primary bitmap hex");
+        assertEquals("0400000000000000", wire.substring(32, 48), "Secondary bitmap hex");
+        // DE7(10) + DE11(6) + DE70(3) = 19
+        assertEquals("0218073507", wire.substring(48, 58), "DE7");
+        assertEquals("000050", wire.substring(58, 64), "DE11");
+        assertEquals("001", wire.substring(64, 67), "DE70");
+
+        // Total wire length: 12 + 4 + 32 + 10 + 6 + 3 = 67
+        assertEquals(67, wire.length(), "Total wire length (excl 2-byte len header)");
     }
 }

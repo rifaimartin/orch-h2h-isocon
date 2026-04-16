@@ -53,7 +53,7 @@ class JsonToIsoMapperTest {
 
         assertNotNull(msg);
         assertEquals("0200", msg.getMti());
-        assertEquals("310000", msg.getField(3));
+        assertEquals("321000", msg.getField(3)); // non-bluGiro = 321000
         assertEquals("000000010000", msg.getField(4)); // 100.00 * 100 = 10000 padded to 12 digits
         assertNotNull(msg.getField(7)); // DE7: MMDDhhmmss
         assertNotNull(msg.getField(11)); // DE11: STAN
@@ -73,8 +73,16 @@ class JsonToIsoMapperTest {
         assertEquals("1234567890", msg.getField(102));
         assertEquals("0987654321", msg.getField(103));
 
-        // Inquiry should NOT have DE126
-        assertFalse(msg.hasField(126), "Inquiry should not have DE126");
+        // DE35: Track2 = 0 + BankCode 501 + 12-digit account + =999
+        assertEquals("0501001234567890=999", msg.getField(35));
+        // DE60: Terminal Data = MOBILE (non-bluGiro)
+        assertEquals("MOBILE", msg.getField(60));
+
+        // Inquiry DOES have DE126 (Token R1 with empty names)
+        assertTrue(msg.hasField(126), "Inquiry should have DE126");
+        String inquiryToken = msg.getField(126);
+        assertEquals(BcadTokenR1Builder.TOTAL_TOKEN_LENGTH, inquiryToken.length(),
+                "Inquiry Token R1 must be exactly " + BcadTokenR1Builder.TOTAL_TOKEN_LENGTH + " chars");
     }
 
     @Test
@@ -107,22 +115,26 @@ class JsonToIsoMapperTest {
         String token = msg.getField(126);
         assertNotNull(token);
 
-        // Verify token length: 30 + 30 + 18 + 1 + 1 = 80
-        assertEquals(80, token.length(), "Token R1 must be exactly 80 chars");
+        // Verify token length: header(22) + token data(270) = 292
+        assertEquals(BcadTokenR1Builder.TOTAL_TOKEN_LENGTH, token.length(),
+                "Token R1 must be exactly " + BcadTokenR1Builder.TOTAL_TOKEN_LENGTH + " chars");
+
+        // Verify header starts with "& "
+        assertTrue(token.startsWith("& "), "Token R1 must start with '& '");
 
         // Parse token and verify fields
         BcadTokenR1Builder.TokenR1 parsed = BcadTokenR1Builder.parse(token);
         assertEquals("JANE DOE", parsed.beneficiaryName());
         assertEquals("JOHN DOE", parsed.senderName());
-        assertEquals("PAYMENT FOR SERVIC", parsed.description().trim());
+        assertEquals("PAYMENT FOR SERVICES", parsed.description().trim());
         assertEquals("D", parsed.acquirerIndicator());
-        assertEquals("I", parsed.issuerIndicator());
     }
 
     @Test
     @DisplayName("Map NetworkManagement Logon to ISO 0800")
     void mapNetworkManagementLogon() {
-        IsoMessage msg = mapper.mapNetworkManagement("001", java.time.LocalDateTime.now());
+        LocalDateTime serverTime = LocalDateTime.now();
+        IsoMessage msg = mapper.mapNetworkManagement("001", serverTime);
 
         assertNotNull(msg);
         assertEquals("0800", msg.getMti());

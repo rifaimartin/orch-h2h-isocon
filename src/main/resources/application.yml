@@ -28,8 +28,8 @@ management:
 
 h2h:
   bca:
-    host: 127.0.0.1
-    port: 7000
+    host: 10.121.91.205
+    port: 60023
     connect-timeout-ms: 5000
     read-timeout-ms: 25000
     reconnect-delay-ms: 5000
@@ -37,6 +37,8 @@ h2h:
     terminal-id: BCAD0001
     merchant-id: "BCADIGITAL001  "
     institution-id: "014"
+    iso-header: "ISO005000060"
+    hex-bitmap: true
 
 logging:
   level:

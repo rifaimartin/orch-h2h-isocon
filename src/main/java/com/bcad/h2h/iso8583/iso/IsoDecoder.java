@@ -1,8 +1,10 @@
 package com.bcad.h2h.iso8583.iso;
 
+import com.bcad.h2h.iso8583.config.TcpSocketProperties;
 import com.bcad.h2h.iso8583.exception.IsoMessageParseException;
 import com.bcad.h2h.iso8583.iso.packager.BcadIsoPackager;
 import com.bcad.h2h.iso8583.iso.packager.FieldDefinition;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -12,9 +14,11 @@ import java.util.List;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class IsoDecoder {
 
     private static final BcadIsoPackager PACKAGER = BcadIsoPackager.getInstance();
+    private final TcpSocketProperties properties;
 
     public IsoMessage decode(byte[] rawData) {
         if (rawData == null || rawData.length < 2) {
@@ -35,6 +39,19 @@ public class IsoDecoder {
                         "Buffer too short: expected " + (offset + msgLength) + " but got " + rawData.length);
             }
 
+            // Skip ISO header if configured (e.g. "ISO005000060" = 12 bytes)
+            String isoHeader = properties.getIsoHeader();
+            if (isoHeader != null && !isoHeader.isEmpty()) {
+                int headerLen = isoHeader.length();
+                // Verify header is present
+                if (rawData.length >= offset + headerLen) {
+                    String headerCheck = new String(rawData, offset, 3, StandardCharsets.ISO_8859_1);
+                    if ("ISO".equals(headerCheck)) {
+                        offset += headerLen;
+                    }
+                }
+            }
+
             // Read MTI (4 bytes)
             String mti = new String(rawData, offset, 4, StandardCharsets.ISO_8859_1);
             offset += 4;
@@ -42,17 +59,31 @@ public class IsoDecoder {
             IsoMessage message = new IsoMessage(mti);
             message.setRawMessage(rawData);
 
-            // Read primary bitmap (8 bytes)
+            // Read primary bitmap — hex ASCII (16 chars) or binary (8 bytes)
             byte[] primaryBitmap = new byte[8];
-            System.arraycopy(rawData, offset, primaryBitmap, 0, 8);
-            offset += 8;
+            if (properties.isHexBitmap()) {
+                // Hex ASCII: read 16 chars -> parse to 8 bytes
+                String hexStr = new String(rawData, offset, 16, StandardCharsets.ISO_8859_1);
+                primaryBitmap = hexStringToBytes(hexStr);
+                offset += 16;
+            } else {
+                // Binary: read 8 raw bytes
+                System.arraycopy(rawData, offset, primaryBitmap, 0, 8);
+                offset += 8;
+            }
 
             boolean hasSecondary = (primaryBitmap[0] & 0x80) != 0;
 
             byte[] secondaryBitmap = new byte[8];
             if (hasSecondary) {
-                System.arraycopy(rawData, offset, secondaryBitmap, 0, 8);
-                offset += 8;
+                if (properties.isHexBitmap()) {
+                    String hexStr = new String(rawData, offset, 16, StandardCharsets.ISO_8859_1);
+                    secondaryBitmap = hexStringToBytes(hexStr);
+                    offset += 16;
+                } else {
+                    System.arraycopy(rawData, offset, secondaryBitmap, 0, 8);
+                    offset += 8;
+                }
             }
 
             // Determine which fields are present
@@ -138,5 +169,16 @@ public class IsoDecoder {
                 return new String(data, offset, len, StandardCharsets.ISO_8859_1);
             }
         }
+    }
+
+    /** Parse hex ASCII string to byte array, e.g. "82200000" -> {0x82, 0x20, 0x00, 0x00} */
+    private byte[] hexStringToBytes(String hex) {
+        int len = hex.length();
+        byte[] result = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            result[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
+        }
+        return result;
     }
 }

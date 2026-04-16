@@ -236,4 +236,9 @@ rtk mvn test -Dtest=IsoDateTimeUtilTest#testTransmissionDateTime
 
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 
-update
+update - update
+
+
+R1 TOKEN :
+Token Data (270 chars): | Field | Length | Total | |-------|--------|-------| | Bank Code To | 3 | 3 | | Beneficiary Name 1 | 35 | 38 | | Beneficiary Name 2 | 35 | 73 | | Sender Name 1 | 35 | 108 | | Sender Name 2 | 35 | 143 | | Description 1 | 35 | 178 | | Description 2 | 35 | 213 | | Description 3 | 35 | 248 | | Acquirer Indicator | 1 | 249 | | Switch Indicator | 1 | 250 | | Issuer Bank Code | 3 | 253 | | Filler | 17 | 270 |
+Total = 22 + 270 = 292 chars ✅

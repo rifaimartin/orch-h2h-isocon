@@ -55,12 +55,14 @@ public class TransactionService {
             log.debug("Sending 0200 Inquiry: stan={} rrn={}",
                     requestMsg.getField(11), requestMsg.getField(37));
             IsoAuditLogger.logOutbound(requestMsg, props.getHost(), props.getPort());
+            IsoAuditLogger.logRawIso("SEND", requestBytes, props.getHost(), props.getPort());
 
             // Send and receive via TCP
             byte[] responseBytes = tcpSocketClient.send(requestBytes);
 
             // Decode 0210 response
             IsoMessage responseMsg = isoDecoder.decode(responseBytes);
+            IsoAuditLogger.logRawIso("RECV", responseBytes, props.getHost(), props.getPort());
             IsoAuditLogger.logInbound(responseMsg, props.getHost(), props.getPort());
 
             log.info("Received 0210 Inquiry response: stan={} rrn={} rc={}",
@@ -111,12 +113,14 @@ public class TransactionService {
             log.debug("Sending 0200 Transfer: stan={} rrn={}",
                     requestMsg.getField(11), requestMsg.getField(37));
             IsoAuditLogger.logOutbound(requestMsg, props.getHost(), props.getPort());
+            IsoAuditLogger.logRawIso("SEND", requestBytes, props.getHost(), props.getPort());
 
             // Send and receive via TCP
             byte[] responseBytes = tcpSocketClient.send(requestBytes);
 
             // Decode 0210 response
             IsoMessage responseMsg = isoDecoder.decode(responseBytes);
+            IsoAuditLogger.logRawIso("RECV", responseBytes, props.getHost(), props.getPort());
             IsoAuditLogger.logInbound(responseMsg, props.getHost(), props.getPort());
 
             String rc = responseMsg.getField(39);

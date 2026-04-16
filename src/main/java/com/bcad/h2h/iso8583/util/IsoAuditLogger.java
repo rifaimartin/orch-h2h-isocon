@@ -90,6 +90,105 @@ public class IsoAuditLogger {
         AUDIT.error(buildErrorXml(context, stan, rrn, error));
     }
 
+    /**
+     * Log raw ISO wire-format message in hex + parsed representation.
+     * Shows: [ISO Header][MTI][BMP:bitmap_hex][Data Elements ASCII]
+     * Useful for debugging with BCA — shows exactly what was sent/received on the wire.
+     *
+     * @param direction "SEND" or "RECV"
+     * @param rawBytes  the full encoded ISO bytes (including 2-byte length header)
+     * @param destHost  host BCA
+     * @param destPort  port BCA
+     */
+    public static void logRawIso(String direction, byte[] rawBytes, String destHost, int destPort) {
+        if (rawBytes == null || rawBytes.length < 2) return;
+        String ts = LocalDateTime.now().format(TS_FMT);
+        String realm = "h2h-iso8583-bcad/" + destHost + ":" + destPort;
+
+        // Skip 2-byte length header for display
+        int bodyLen = rawBytes.length - 2;
+        byte[] body = new byte[bodyLen];
+        System.arraycopy(rawBytes, 2, body, 0, bodyLen);
+
+        // Build full hex string (for copy-paste to BCA)
+        StringBuilder hex = new StringBuilder();
+        for (byte b : body) {
+            hex.append(String.format("%02X", b));
+        }
+
+        // Build parsed wire representation: Header + MTI + [BMP:hex] + fields(ASCII)
+        StringBuilder wire = new StringBuilder();
+        int pos = 0;
+
+        // Check for ISO header (starts with "ISO", typically 12 bytes)
+        if (bodyLen > 15 && body[0] == 'I' && body[1] == 'S' && body[2] == 'O') {
+            // Find where MTI starts (first '0' after header that looks like 0xxx)
+            int headerLen = 12; // standard BASE24 ISO header length
+            wire.append(new String(body, 0, headerLen, java.nio.charset.StandardCharsets.ISO_8859_1));
+            pos = headerLen;
+        }
+
+        // MTI (4 bytes ASCII)
+        if (pos + 4 <= bodyLen) {
+            wire.append(new String(body, pos, 4, java.nio.charset.StandardCharsets.ISO_8859_1));
+            pos += 4;
+        }
+
+        // Bitmap — detect if hex ASCII or binary
+        // Hex ASCII bitmap: first 16 chars are all [0-9A-Fa-f]
+        // Binary bitmap: first byte is typically 0x82, 0xA2, etc. (non-printable)
+        if (pos + 16 <= bodyLen) {
+            boolean isHexAscii = isHexAsciiRange(body, pos, 16);
+
+            if (isHexAscii) {
+                // Hex ASCII bitmap: read 16 chars primary, check for secondary
+                String primaryHex = new String(body, pos, 16, java.nio.charset.StandardCharsets.ISO_8859_1);
+                wire.append("[BMP:").append(primaryHex);
+                pos += 16;
+
+                // Check secondary: first hex char >= '8' means bit 1 set
+                char firstChar = primaryHex.charAt(0);
+                boolean hasSecondary = "89ABCDEFabcdef".indexOf(firstChar) >= 0;
+                if (hasSecondary && pos + 16 <= bodyLen) {
+                    String secondaryHex = new String(body, pos, 16, java.nio.charset.StandardCharsets.ISO_8859_1);
+                    wire.append(secondaryHex);
+                    pos += 16;
+                }
+                wire.append("]");
+            } else {
+                // Binary bitmap: read 8 bytes primary, convert to hex for display
+                wire.append("[BMP:");
+                boolean hasSecondary = (body[pos] & 0x80) != 0;
+                for (int i = pos; i < pos + 8; i++) {
+                    wire.append(String.format("%02X", body[i]));
+                }
+                pos += 8;
+
+                if (hasSecondary && pos + 8 <= bodyLen) {
+                    for (int i = pos; i < pos + 8; i++) {
+                        wire.append(String.format("%02X", body[i]));
+                    }
+                    pos += 8;
+                }
+                wire.append("]");
+            }
+        }
+
+        // Remaining data elements (ASCII)
+        if (pos < bodyLen) {
+            wire.append(new String(body, pos, bodyLen - pos, java.nio.charset.StandardCharsets.ISO_8859_1));
+        }
+
+        String logEntry = String.format(
+                "\n<log realm=\"%s\" at=\"%s\">\n  <raw direction=\"%s\" length=\"%d\">\n" +
+                "    <hex>%s</hex>\n" +
+                "    <wire>%s</wire>\n" +
+                "  </raw>\n</log>",
+                realm, ts, direction, bodyLen, hex, escape(wire.toString()));
+
+        AUDIT.info(logEntry);
+    }
+
     // -------------------------------------------------------------------------
 
     private static String buildXml(String realm, String tag, String direction, IsoMessage msg) {
@@ -141,13 +240,24 @@ public class IsoAuditLogger {
                "</log>";
     }
 
-    /** Escape karakter XML di value field. */
+    /** Escape karakter XML di value field (except &). */
     private static String escape(String value) {
         if (value == null) return "";
         return value
-                .replace("&",  "&amp;")
                 .replace("<",  "&lt;")
                 .replace(">",  "&gt;")
                 .replace("\"", "&quot;");
+    }
+
+    /** Check if a range of bytes are all valid hex ASCII characters [0-9A-Fa-f]. */
+    private static boolean isHexAsciiRange(byte[] data, int offset, int length) {
+        if (offset + length > data.length) return false;
+        for (int i = offset; i < offset + length; i++) {
+            char c = (char) (data[i] & 0xFF);
+            if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

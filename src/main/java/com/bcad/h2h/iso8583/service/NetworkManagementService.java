@@ -1,11 +1,13 @@
 package com.bcad.h2h.iso8583.service;
 
+import com.bcad.h2h.iso8583.config.TcpSocketProperties;
 import com.bcad.h2h.iso8583.event.CutoverEvent;
 import com.bcad.h2h.iso8583.iso.IsoDecoder;
 import com.bcad.h2h.iso8583.iso.IsoEncoder;
 import com.bcad.h2h.iso8583.iso.IsoMessage;
 import com.bcad.h2h.iso8583.mapper.JsonToIsoMapper;
 import com.bcad.h2h.iso8583.transport.TcpSocketClient;
+import com.bcad.h2h.iso8583.util.IsoAuditLogger;
 import com.bcad.h2h.iso8583.util.IsoDateTimeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ public class NetworkManagementService {
     private final IsoDecoder isoDecoder;
     private final TcpSocketClient tcpSocketClient;
     private final IsoDateTimeUtil dateTimeUtil;
+    private final TcpSocketProperties props;
 
     private final AtomicReference<LocalDateTime> currentBusinessDate =
             new AtomicReference<>(LocalDateTime.now(java.time.ZoneId.of("Asia/Jakarta")));
@@ -65,6 +68,7 @@ public class NetworkManagementService {
      */
     public IsoMessage handleCutover(IsoMessage incomingCutover) {
         log.info("Handling Cutover (0800 BIT70=201) from BCA");
+        IsoAuditLogger.logInbound(incomingCutover, props.getHost(), props.getPort());
 
         // Update business date
         LocalDateTime newBusinessDate = dateTimeUtil.nowWib();
@@ -83,6 +87,7 @@ public class NetworkManagementService {
 
         try {
             byte[] responseBytes = isoEncoder.encode(response);
+            IsoAuditLogger.logOutbound(response, props.getHost(), props.getPort());
             tcpSocketClient.send(responseBytes);
             log.info("Sent 0810 Cutover response with RC=00");
         } catch (Exception e) {
@@ -116,10 +121,14 @@ public class NetworkManagementService {
         byte[] requestBytes = isoEncoder.encode(requestMsg);
 
         log.debug("Sending 0800 networkCode={} stan={}", networkCode, requestMsg.getField(11));
+        IsoAuditLogger.logOutbound(requestMsg, props.getHost(), props.getPort());
+        IsoAuditLogger.logRawIso("SEND", requestBytes, props.getHost(), props.getPort());
 
         byte[] responseBytes = tcpSocketClient.send(requestBytes);
         IsoMessage responseMsg = isoDecoder.decode(responseBytes);
 
+        IsoAuditLogger.logRawIso("RECV", responseBytes, props.getHost(), props.getPort());
+        IsoAuditLogger.logInbound(responseMsg, props.getHost(), props.getPort());
         log.info("Received 0810 networkCode={} stan={} rc={}",
                 networkCode, responseMsg.getField(11), responseMsg.getField(39));
 

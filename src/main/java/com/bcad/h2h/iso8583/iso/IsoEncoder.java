@@ -1,8 +1,10 @@
 package com.bcad.h2h.iso8583.iso;
 
+import com.bcad.h2h.iso8583.config.TcpSocketProperties;
 import com.bcad.h2h.iso8583.exception.IsoMessageParseException;
 import com.bcad.h2h.iso8583.iso.packager.BcadIsoPackager;
 import com.bcad.h2h.iso8583.iso.packager.FieldDefinition;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -13,13 +15,21 @@ import java.util.TreeSet;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class IsoEncoder {
 
     private static final BcadIsoPackager PACKAGER = BcadIsoPackager.getInstance();
+    private final TcpSocketProperties properties;
 
     public byte[] encode(IsoMessage message) {
         try {
             ByteArrayOutputStream body = new ByteArrayOutputStream();
+
+            // Write ISO header if configured (BASE24 TPDU header, e.g. "ISO005000060")
+            String isoHeader = properties.getIsoHeader();
+            if (isoHeader != null && !isoHeader.isEmpty()) {
+                body.write(isoHeader.getBytes(StandardCharsets.ISO_8859_1));
+            }
 
             // Write MTI (4 bytes ASCII)
             body.write(message.getMti().getBytes(StandardCharsets.ISO_8859_1));
@@ -52,9 +62,19 @@ public class IsoEncoder {
                 }
             }
 
-            body.write(primaryBitmap);
-            if (needSecondary) {
-                body.write(secondaryBitmap);
+            // Write bitmap — hex ASCII (BASE24 BCAD) or binary (standard ISO 8583)
+            if (properties.isHexBitmap()) {
+                // Hex ASCII: each bitmap byte -> 2 hex chars, e.g. 0x82 -> "82"
+                body.write(bytesToHex(primaryBitmap).getBytes(StandardCharsets.ISO_8859_1));
+                if (needSecondary) {
+                    body.write(bytesToHex(secondaryBitmap).getBytes(StandardCharsets.ISO_8859_1));
+                }
+            } else {
+                // Binary: raw 8/16 bytes
+                body.write(primaryBitmap);
+                if (needSecondary) {
+                    body.write(secondaryBitmap);
+                }
             }
 
             // Write each field

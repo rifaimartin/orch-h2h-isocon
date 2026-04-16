@@ -44,7 +44,7 @@ public class OpenApiConfig {
                                 .url("https://www.bluebirdgroup.com")))
                 .servers(List.of(
                         new Server().url("http://localhost:8080/orch/h2h-isocon").description("Local Development"),
-                        new Server().url("http://h2h-iso8583-bcad:8080/orch/h2h-isocon").description("Internal Service")
+                        new Server().url("https://h2h-iso8583-bcad:8080/orch/h2h-isocon").description("Internal Service")
                 ));
     }
 }
