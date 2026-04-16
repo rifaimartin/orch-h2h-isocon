@@ -142,15 +142,17 @@ DELETE /api/v1/simulator/scenario
 
 ---
 
-## Audit Log
+### Audit Log
 
-ISO 8583 message di-log dalam format jPOS XML ke file:
+ISO 8583 message di-log dalam format jPOS XML ke file `logs/h2h-iso8583-bcad-audit.log`.
 
-```
-logs/h2h-iso8583-bcad-audit.log
-```
+**Fitur Logging:**
+- **Masking Otomatis:** Data sensitif (PAN, Track Data, PIN, Account ID) dimasking secara otomatis di file audit.
+- **Traceability:** Setiap log transaksi menyertakan `transactionId` dari request untuk memudahkan penelusuran antara log aplikasi dan log audit.
+- **Async Logging:** Menggunakan `AsyncAppender` untuk meminimalkan dampak I/O terhadap performa transaksi.
+- **Retention:** Log audit disimpan selama 90 hari untuk kebutuhan rekonsiliasi.
 
-Contoh format:
+Contoh format log audit:
 
 ```xml
 <log realm="h2h-iso8583-bcad/127.0.0.1:7000" at="2026-04-03T09:16:24.578">

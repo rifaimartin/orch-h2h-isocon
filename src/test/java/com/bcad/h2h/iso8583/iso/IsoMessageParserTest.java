@@ -24,6 +24,29 @@ class IsoMessageParserTest {
     }
 
     @Test
+    @DisplayName("Parse 0200 Inquiry message with PIN - success")
+    void parse0200InquiryWithPinSuccess() {
+        IsoMessage msg = new IsoMessage("0200");
+        msg.setField(3, "310000");
+        msg.setField(11, "000001");
+        msg.setField(52, "0123456789ABCDEF");
+        msg.setField(102, "1234567890");
+        msg.setField(103, "0987654321");
+
+        assertNotNull(msg.getMti());
+        assertEquals("0200", msg.getMti());
+        assertEquals("0123456789ABCDEF", msg.getField(52));
+        assertTrue(msg.hasField(52));
+        
+        // Test Encoding DE52 (Binary/Fixed 8 bytes -> 16 hex chars)
+        byte[] encoded = encoder.encode(msg);
+        assertNotNull(encoded);
+        
+        IsoMessage decoded = decoder.decode(encoded);
+        assertEquals("0123456789ABCDEF", decoded.getField(52));
+    }
+
+    @Test
     @DisplayName("Parse 0200 Inquiry message - success")
     void parse0200InquirySuccess() {
         IsoMessage msg = new IsoMessage("0200");
@@ -210,6 +233,7 @@ class IsoMessageParserTest {
         TcpSocketProperties bcaProps = new TcpSocketProperties();
         bcaProps.setIsoHeader("ISO005000060");
         bcaProps.setHexBitmap(true);
+        bcaProps.setTerminalId("BCAD0001");
         IsoEncoder bcaEncoder = new IsoEncoder(bcaProps);
 
         // Build 0800 Logon — same as BCA example
@@ -217,6 +241,7 @@ class IsoMessageParserTest {
         logon.setField(7, "0218073507");  // DE7:  MMDDhhmmss
         logon.setField(11, "000050");     // DE11: STAN
         logon.setField(70, "001");        // DE70: Logon
+        logon.setField(123, "BCAD0001");  // DE123: Station ID (match mapNetworkManagement)
 
         byte[] encoded = bcaEncoder.encode(logon);
         // Skip 2-byte length header for wire content
@@ -227,13 +252,16 @@ class IsoMessageParserTest {
         assertEquals("ISO005000060", wire.substring(0, 12), "ISO header");
         assertEquals("0800", wire.substring(12, 16), "MTI");
         assertEquals("8220000000000000", wire.substring(16, 32), "Primary bitmap hex");
-        assertEquals("0400000000000000", wire.substring(32, 48), "Secondary bitmap hex");
+        assertEquals("0400000000000020", wire.substring(32, 48), "Secondary bitmap hex");
         // DE7(10) + DE11(6) + DE70(3) = 19
         assertEquals("0218073507", wire.substring(48, 58), "DE7");
         assertEquals("000050", wire.substring(58, 64), "DE11");
         assertEquals("001", wire.substring(64, 67), "DE70");
 
-        // Total wire length: 12 + 4 + 32 + 10 + 6 + 3 = 67
-        assertEquals(67, wire.length(), "Total wire length (excl 2-byte len header)");
+        // DE123 check
+        assertTrue(wire.length() > 67, "Should have DE123");
+        String de123Part = wire.substring(67);
+        // LLLVAR "BCAD0001" -> "008BCAD0001"
+        assertEquals("008BCAD0001", de123Part, "DE123 format");
     }
 }

@@ -45,7 +45,7 @@ public class InquiryRequest {
     private String currencyCode = "360";
 
     @NotBlank(message = "Terminal ID is required")
-    @Schema(description = "Terminal ID (DE41, 8 karakter)", example = "BCAD0001")
+    @Schema(description = "Terminal ID (DE41, 16 karakter)", example = "BCAD0001")
     private String terminalId;
 
     @NotBlank(message = "Merchant ID is required")

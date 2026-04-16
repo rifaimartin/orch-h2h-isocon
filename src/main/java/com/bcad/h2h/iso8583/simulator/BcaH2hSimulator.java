@@ -26,7 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Component
-@Profile({"local", "simulator"})
+@Profile({"local", "simulator", "dev", "uat"})
 @RequiredArgsConstructor
 public class BcaH2hSimulator {
 
@@ -110,6 +110,74 @@ public class BcaH2hSimulator {
         }
     }
 
+    /**
+     * Kirim 0800 (BIT70=001) unsolicited ke client yang sedang konek.
+     * Mensimulasikan BCA yang initiate Logon ke BCAD.
+     * Client (TcpConnectionManager) harus auto-reply dengan 0810.
+     */
+    public void sendUnsolicitedLogon() {
+        clientWriteLock.lock();
+        try {
+            if (activeClientOut == null) {
+                throw new IllegalStateException("No client currently connected to simulator");
+            }
+
+            String now  = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
+            String stan = String.format("%06d", simStan.getAndIncrement());
+
+            IsoMessage logon = new IsoMessage("0800");
+            logon.setField(7,  now);
+            logon.setField(11, stan);
+            logon.setField(70, "001");
+
+            byte[] encoded = isoEncoder.encode(logon);
+            activeClientOut.write(encoded);
+            activeClientOut.flush();
+
+            log.info("[SIM] Sent unsolicited 0800 Logon to client STAN={}", stan);
+        } catch (IOException e) {
+            log.error("[SIM] Failed to send unsolicited logon: {}", e.getMessage());
+            activeClientOut = null;
+            throw new RuntimeException("Failed to send logon: " + e.getMessage(), e);
+        } finally {
+            clientWriteLock.unlock();
+        }
+    }
+
+    /**
+     * Kirim 0800 (BIT70=002) unsolicited ke client yang sedang konek.
+     * Mensimulasikan BCA yang initiate Logoff ke BCAD.
+     * Client (TcpConnectionManager) harus auto-reply dengan 0810.
+     */
+    public void sendUnsolicitedLogoff() {
+        clientWriteLock.lock();
+        try {
+            if (activeClientOut == null) {
+                throw new IllegalStateException("No client currently connected to simulator");
+            }
+
+            String now  = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
+            String stan = String.format("%06d", simStan.getAndIncrement());
+
+            IsoMessage logoff = new IsoMessage("0800");
+            logoff.setField(7,  now);
+            logoff.setField(11, stan);
+            logoff.setField(70, "002");
+
+            byte[] encoded = isoEncoder.encode(logoff);
+            activeClientOut.write(encoded);
+            activeClientOut.flush();
+
+            log.info("[SIM] Sent unsolicited 0800 Logoff to client STAN={}", stan);
+        } catch (IOException e) {
+            log.error("[SIM] Failed to send unsolicited logoff: {}", e.getMessage());
+            activeClientOut = null;
+            throw new RuntimeException("Failed to send logoff: " + e.getMessage(), e);
+        } finally {
+            clientWriteLock.unlock();
+        }
+    }
+
     public boolean isClientConnected() {
         return activeClientOut != null;
     }
@@ -184,14 +252,21 @@ public class BcaH2hSimulator {
                     IsoMessage request = isoDecoder.decode(fullMsg);
                     logRequest(request);
 
-                    // 0810 = echo reply dari client (hasil auto-reply TcpConnectionManager)
+                    // 0810 = reply dari client (hasil auto-reply TcpConnectionManager)
                     if ("0810".equals(request.getMti())) {
                         String bit70 = request.getField(70) != null ? request.getField(70).trim() : "";
                         if ("301".equals(bit70)) {
                             log.info("[SIM] Received 0810 Echo Reply STAN={} RC={} - echo round-trip OK",
                                     request.getField(11), request.getField(39));
+                        } else if ("001".equals(bit70)) {
+                            log.info("[SIM] Received 0810 Logon Reply STAN={} RC={} - logon round-trip OK",
+                                    request.getField(11), request.getField(39));
+                        } else if ("002".equals(bit70)) {
+                            log.info("[SIM] Received 0810 Logoff Reply STAN={} RC={} - logoff round-trip OK",
+                                    request.getField(11), request.getField(39));
                         } else {
-                            log.info("[SIM] Received 0810 network response STAN={}", request.getField(11));
+                            log.info("[SIM] Received 0810 network response BIT70={} STAN={}",
+                                    bit70, request.getField(11));
                         }
                         continue; // tidak perlu reply lagi
                     }

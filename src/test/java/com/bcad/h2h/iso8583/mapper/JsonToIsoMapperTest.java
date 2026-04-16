@@ -75,8 +75,17 @@ class JsonToIsoMapperTest {
 
         // DE35: Track2 = 0 + BankCode 501 + 12-digit account + =999
         assertEquals("0501001234567890=999", msg.getField(35));
-        // DE60: Terminal Data = MOBILE (non-bluGiro)
-        assertEquals("MOBILE", msg.getField(60));
+        // DE60: Terminal Data = MOBILE/INTERNET (non-bluGiro)
+        assertEquals("MOBILE/INTERNET", msg.getField(60));
+
+        // DE32: Acquiring Institution ID (bank code)
+        assertEquals("501", msg.getField(32));
+        // DE100: Receiving Institution ID (bank code)
+        assertEquals("501", msg.getField(100));
+        // DE48: Additional Data Private
+        assertNotNull(msg.getField(48));
+        // DE41: Terminal ID padded to 16
+        assertEquals(16, msg.getField(41).length());
 
         // Inquiry DOES have DE126 (Token R1 with empty names)
         assertTrue(msg.hasField(126), "Inquiry should have DE126");
@@ -107,7 +116,7 @@ class JsonToIsoMapperTest {
 
         assertNotNull(msg);
         assertEquals("0200", msg.getMti());
-        assertEquals("400000", msg.getField(3));
+        assertEquals("401000", msg.getField(3));
         assertEquals("000000050000", msg.getField(4)); // 500.00 * 100 = 50000
 
         // Verify DE126 Token R1 is present

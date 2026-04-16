@@ -8,6 +8,8 @@ h2h:
     max-retries: 3
 
 logging:
+#  level:
+#    root: INFO
+#    com.bcad.h2h.iso8583: DEBUG
   level:
-    root: INFO
-    com.bcad.h2h.iso8583: DEBUG
+    com.bcad.h2h.iso8583: TRACE

@@ -52,8 +52,8 @@ public class TransactionService {
             IsoMessage requestMsg = jsonToIsoMapper.mapInquiryRequest(request);
             byte[] requestBytes = isoEncoder.encode(requestMsg);
 
-            log.debug("Sending 0200 Inquiry: stan={} rrn={}",
-                    requestMsg.getField(11), requestMsg.getField(37));
+            log.info("Sending 0200 Inquiry: txnId={} stan={} rrn={}",
+                    request.getTransactionId(), requestMsg.getField(11), requestMsg.getField(37));
             IsoAuditLogger.logOutbound(requestMsg, props.getHost(), props.getPort());
             IsoAuditLogger.logRawIso("SEND", requestBytes, props.getHost(), props.getPort());
 
@@ -65,8 +65,8 @@ public class TransactionService {
             IsoAuditLogger.logRawIso("RECV", responseBytes, props.getHost(), props.getPort());
             IsoAuditLogger.logInbound(responseMsg, props.getHost(), props.getPort());
 
-            log.info("Received 0210 Inquiry response: stan={} rrn={} rc={}",
-                    responseMsg.getField(11), responseMsg.getField(37), responseMsg.getField(39));
+            log.info("Received 0210 Inquiry response: txnId={} stan={} rrn={} rc={}",
+                    request.getTransactionId(), responseMsg.getField(11), responseMsg.getField(37), responseMsg.getField(39));
 
             // Map to DTO
             return isoToJsonMapper.mapToInquiryResponse(responseMsg, request.getTransactionId());
@@ -110,8 +110,8 @@ public class TransactionService {
             IsoMessage requestMsg = jsonToIsoMapper.mapTransferRequest(request);
             byte[] requestBytes = isoEncoder.encode(requestMsg);
 
-            log.debug("Sending 0200 Transfer: stan={} rrn={}",
-                    requestMsg.getField(11), requestMsg.getField(37));
+            log.info("Sending 0200 Transfer: txnId={} stan={} rrn={}",
+                    request.getTransactionId(), requestMsg.getField(11), requestMsg.getField(37));
             IsoAuditLogger.logOutbound(requestMsg, props.getHost(), props.getPort());
             IsoAuditLogger.logRawIso("SEND", requestBytes, props.getHost(), props.getPort());
 
@@ -124,8 +124,8 @@ public class TransactionService {
             IsoAuditLogger.logInbound(responseMsg, props.getHost(), props.getPort());
 
             String rc = responseMsg.getField(39);
-            log.info("Received 0210 Transfer response: stan={} rrn={} rc={}",
-                    responseMsg.getField(11), responseMsg.getField(37), rc);
+            log.info("Received 0210 Transfer response: txnId={} stan={} rrn={} rc={}",
+                    request.getTransactionId(), responseMsg.getField(11), responseMsg.getField(37), rc);
 
             // RC 68 = SUSPEND - do NOT reverse
             if ("68".equals(rc != null ? rc.trim() : null)) {

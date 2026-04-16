@@ -170,7 +170,7 @@ build-image:
     - echo "build image before script end"
     - echo -n $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - echo "build image script start"
-    - docker build --platform=linux/amd64 --tag $CI_REGISTRY_IMAGE:$NEW_TAG -f Dockerfile .
+    - docker build --network=host --platform=linux/amd64 --tag $CI_REGISTRY_IMAGE:$NEW_TAG -f Dockerfile .
     - docker push $CI_REGISTRY_IMAGE:$NEW_TAG
     - echo "build image script end!"
 
@@ -190,7 +190,7 @@ build-image-prod:
     - echo "build image before script end"    
     - echo -n $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - echo "build image script start"
-    - docker build --platform=linux/amd64 --tag $CI_REGISTRY_IMAGE:$SITE-$PROD_TAG -f Dockerfile .
+    - docker build --network=host --platform=linux/amd64 --tag $CI_REGISTRY_IMAGE:$SITE-$PROD_TAG -f Dockerfile .
     - docker push $CI_REGISTRY_IMAGE:$SITE-$PROD_TAG
     - echo "build image script end!"
     

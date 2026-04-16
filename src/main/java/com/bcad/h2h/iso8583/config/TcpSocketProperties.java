@@ -15,6 +15,7 @@ public class TcpSocketProperties {
     private String terminalId = "BCAD0001";
     private String merchantId = "BCADIGITAL001 ";
     private String institutionId = "014";
+    private String bankCode = "501";
 
     /**
      * ISO 8583 message header (BASE24 TPDU header).

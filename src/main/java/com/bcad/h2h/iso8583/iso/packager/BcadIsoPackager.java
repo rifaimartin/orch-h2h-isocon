@@ -49,7 +49,7 @@ public class BcadIsoPackager {
         FIELD_DEFINITIONS.put(38,  new FieldDefinition(38,  ALPHANUM,6,   "Authorization ID"));
         FIELD_DEFINITIONS.put(39,  new FieldDefinition(39,  ALPHANUM,2,   "Response Code"));
         FIELD_DEFINITIONS.put(40,  new FieldDefinition(40,  ALPHANUM,3,   "Service Restriction Code"));
-        FIELD_DEFINITIONS.put(41,  new FieldDefinition(41,  ALPHANUM,8,   "Terminal ID"));
+        FIELD_DEFINITIONS.put(41,  new FieldDefinition(41,  ALPHANUM,16,  "Terminal ID"));
         FIELD_DEFINITIONS.put(42,  new FieldDefinition(42,  ALPHANUM,15,  "Merchant ID"));
         FIELD_DEFINITIONS.put(43,  new FieldDefinition(43,  ALPHA,   40,  "Card Acceptor Name/Location"));
         FIELD_DEFINITIONS.put(44,  new FieldDefinition(44,  LLVAR,   25,  "Additional Response Data"));

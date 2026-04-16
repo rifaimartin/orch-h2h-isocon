@@ -8,6 +8,7 @@ import com.bcad.h2h.iso8583.iso.token.BcadTokenR1Builder;
 import com.bcad.h2h.iso8583.util.IsoDateTimeUtil;
 import com.bcad.h2h.iso8583.util.RrnGenerator;
 import com.bcad.h2h.iso8583.util.StanGenerator;
+import com.bcad.h2h.iso8583.service.NetworkManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -39,7 +40,8 @@ public class JsonToIsoMapper {
         LocalDateTime txnTime = req.getTransactionTime();
         LocalDateTime serverTime = LocalDateTime.now();
         String fromAccount = req.getFromAccountNo();
-        
+        String currency = req.getCurrencyCode() != null ? req.getCurrencyCode() : "360";
+
         IsoMessage msg = new IsoMessage("0200");
         msg.setField(2,   buildPan(fromAccount));
         msg.setField(3,   isBluGiro(fromAccount) ? "322000" : "321000");
@@ -48,14 +50,16 @@ public class JsonToIsoMapper {
         msg.setField(11,  req.getStan() != null ? req.getStan() : stanGenerator.next());
         msg.setField(12,  isoDateTimeUtil.toLocalTime(convertToWib(txnTime)));
         msg.setField(13,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
-        msg.setField(15,  isoDateTimeUtil.toLocalDate(txnTime.plusDays(1)));
-        msg.setField(17,  isoDateTimeUtil.toLocalDate(txnTime));
+        msg.setField(15,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
+        msg.setField(17,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
+        msg.setField(32,  props.getBankCode());
         msg.setField(35,  buildTrack2(fromAccount));
         msg.setField(37,  req.getRrn() != null ? req.getRrn() : rrnGenerator.next());
-        msg.setField(41,  padRight(props.getTerminalId(), 8));
-//        msg.setField(42,  padRight(props.getMerchantId(), 15));
-        msg.setField(49,  req.getCurrencyCode() != null ? req.getCurrencyCode() : "360");
+        msg.setField(41,  padRight(props.getTerminalId(), 16));
+        msg.setField(48,  buildAdditionalData(currency));
+        msg.setField(49,  currency);
         msg.setField(60,  getTerminalData(fromAccount));
+        msg.setField(100, props.getBankCode());
         msg.setField(102, req.getFromAccountNo());
         msg.setField(103, req.getToAccountNo());
 
@@ -67,7 +71,8 @@ public class JsonToIsoMapper {
                 "I").build();
         msg.setField(126, tokenR1);
 
-        log.info("InquiryRequest fields: 35={}, 60={}", msg.getField(35), msg.getField(60));
+        log.info("InquiryRequest fields: 32={}, 35={}, 60={}, 100={}", 
+                msg.getField(32), msg.getField(35), msg.getField(60), msg.getField(100));
         log.debug("Mapped InquiryRequest -> {}", msg);
         return msg;
     }
@@ -81,28 +86,29 @@ public class JsonToIsoMapper {
         String fromAccount = req.getFromAccountNo();
         LocalDateTime txnTime = req.getTransactionTime();
         LocalDateTime serverTime = LocalDateTime.now();
+        String currency = req.getCurrencyCode() != null ? req.getCurrencyCode() : "360";
 
         IsoMessage msg = new IsoMessage("0200");
         msg.setField(2,   buildPan(fromAccount));
-        msg.setField(3,   isBluGiro(fromAccount) ? "322000" : "321000");
-        msg.setField(3,   "400000");
+        msg.setField(3,   "401000");
         msg.setField(4,   formatAmount(req.getAmount()));
         msg.setField(7,   isoDateTimeUtil.toTransmissionDateTime(serverTime));
         msg.setField(11,  req.getStan() != null ? req.getStan() : stanGenerator.next());
         msg.setField(12,  isoDateTimeUtil.toLocalTime(convertToWib(txnTime)));
         msg.setField(13,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
-        msg.setField(15,  isoDateTimeUtil.toLocalDate(txnTime.plusDays(1)));
-        msg.setField(17,  isoDateTimeUtil.toLocalDate(txnTime));
+        msg.setField(15,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
+        msg.setField(17,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
+        msg.setField(32,  props.getBankCode());
         msg.setField(35,  buildTrack2(fromAccount));
         msg.setField(37,  req.getRrn() != null ? req.getRrn() : rrnGenerator.next());
-        msg.setField(41,  padRight(props.getTerminalId(), 8));
-//        msg.setField(42,  padRight(props.getMerchantId(), 15));
-        msg.setField(49,  req.getCurrencyCode() != null ? req.getCurrencyCode() : "360");
+        msg.setField(41,  padRight(props.getTerminalId(), 16));
+        msg.setField(48,  buildAdditionalData(currency));
+        msg.setField(49,  currency);
         msg.setField(60,  getTerminalData(fromAccount));
+        msg.setField(100, props.getBankCode());
         msg.setField(102, req.getFromAccountNo());
         msg.setField(103, req.getToAccountNo());
 
-        // Always set Token R1 (may be empty)
         String tokenR1 = new BcadTokenR1Builder(
                 req.getBeneficiaryName(),
                 req.getSenderName(),
@@ -111,7 +117,9 @@ public class JsonToIsoMapper {
                 "I").build();
         msg.setField(126, tokenR1);
 
-        log.info("TransferRequest fields: 35={}, 60={}, 126={}", msg.getField(35), msg.getField(60), msg.getField(126) != null ? "SET" : "NULL");
+        log.info("TransferRequest fields: 32={}, 35={}, 60={}, 100={}, 126={}", 
+                msg.getField(32), msg.getField(35), msg.getField(60), msg.getField(100),
+                msg.getField(126) != null ? "SET" : "NULL");
         log.debug("Mapped TransferRequest -> {}", msg);
         return msg;
     }
@@ -122,9 +130,15 @@ public class JsonToIsoMapper {
      */
     public IsoMessage mapNetworkManagement(String networkCode, LocalDateTime txnTime) {
         IsoMessage msg = new IsoMessage("0800");
-        msg.setField(7,  isoDateTimeUtil.toTransmissionDateTime(txnTime));
-        msg.setField(11, stanGenerator.next());
-        msg.setField(70, networkCode);
+        msg.setField(7,   isoDateTimeUtil.toTransmissionDateTime(txnTime));
+        msg.setField(11,  stanGenerator.next());
+        msg.setField(70,  networkCode);
+        
+        // DE123 (Station ID/Identity) - set to terminal ID as fallback
+        if (NetworkManagementService.CODE_LOGON.equals(networkCode)) {
+            msg.setField(123, props.getTerminalId());
+        }
+        
         log.debug("Mapped NetworkManagement code={} -> {}", networkCode, msg);
         return msg;
     }
@@ -181,9 +195,17 @@ public class JsonToIsoMapper {
     /**
      * Gets Terminal Data (DE60) for Inquiry/Transfer.
      * bluGiro accounts (prefix 77): "INTERNET"
-     * Other accounts: "MOBILE"
+     * Other accounts: "MOBILE/INTERNET"
      */
     private String getTerminalData(String fromAccount) {
-        return isBluGiro(fromAccount) ? "INTERNET" : "MOBILE";
+        return isBluGiro(fromAccount) ? "INTERNET" : "MOBILE/INTERNET";
+    }
+
+    /**
+     * Builds DE48 Additional Data Private.
+     * Format: "A " + fee indicator + currency code + fee amount (12 digits).
+     */
+    private String buildAdditionalData(String currencyCode) {
+        return "A 4000003" + currencyCode + "000000000000";
     }
 }

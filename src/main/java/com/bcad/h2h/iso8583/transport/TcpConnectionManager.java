@@ -2,6 +2,7 @@ package com.bcad.h2h.iso8583.transport;
 
 import com.bcad.h2h.iso8583.config.TcpSocketProperties;
 import com.bcad.h2h.iso8583.event.CutoverEvent;
+import com.bcad.h2h.iso8583.event.InboundLogonEvent;
 import com.bcad.h2h.iso8583.exception.TransportException;
 import com.bcad.h2h.iso8583.iso.IsoDecoder;
 import com.bcad.h2h.iso8583.iso.IsoEncoder;
@@ -163,6 +164,10 @@ public class TcpConnectionManager {
             } else if ("201".equals(bit70)) {
                 autoReplyCutover(msg);
                 eventPublisher.publishEvent(new CutoverEvent(this, msg));
+            } else if ("001".equals(bit70)) {
+                autoReplyLogon(msg);
+            } else if ("002".equals(bit70)) {
+                autoReplyLogoff(msg);
             } else {
                 log.warn("Unsolicited 0800 BIT70={} - no handler, ignoring", bit70);
             }
@@ -199,6 +204,45 @@ public class TcpConnectionManager {
             log.info("Auto-replied 0810 echo to BCA STAN={}", trimField(inbound.getField(11)));
         } catch (Exception e) {
             log.error("Failed to auto-reply 0810 echo: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Builds and sends a 0810 logon response to BCA when BCA initiates logon (0800/BIT70=001).
+     */
+    private void autoReplyLogon(IsoMessage inbound) {
+        try {
+            IsoMessage response = new IsoMessage("0810");
+            response.setField(7,  inbound.getField(7));
+            response.setField(11, inbound.getField(11));
+            response.setField(39, "00");
+            response.setField(70, "001");
+
+            byte[] encoded = isoEncoder.encode(response);
+            writeToSocket(encoded);
+            log.info("Auto-replied 0810 logon to BCA STAN={}", trimField(inbound.getField(11)));
+            eventPublisher.publishEvent(new InboundLogonEvent(this, inbound));
+        } catch (Exception e) {
+            log.error("Failed to auto-reply 0810 logon: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Builds and sends a 0810 logoff response to BCA when BCA initiates logoff (0800/BIT70=002).
+     */
+    private void autoReplyLogoff(IsoMessage inbound) {
+        try {
+            IsoMessage response = new IsoMessage("0810");
+            response.setField(7,  inbound.getField(7));
+            response.setField(11, inbound.getField(11));
+            response.setField(39, "00");
+            response.setField(70, "002");
+
+            byte[] encoded = isoEncoder.encode(response);
+            writeToSocket(encoded);
+            log.info("Auto-replied 0810 logoff to BCA STAN={}", trimField(inbound.getField(11)));
+        } catch (Exception e) {
+            log.error("Failed to auto-reply 0810 logoff: {}", e.getMessage(), e);
         }
     }
 

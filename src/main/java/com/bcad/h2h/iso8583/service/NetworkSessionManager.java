@@ -2,6 +2,7 @@ package com.bcad.h2h.iso8583.service;
 
 import com.bcad.h2h.iso8583.config.TcpSocketProperties;
 import com.bcad.h2h.iso8583.event.CutoverEvent;
+import com.bcad.h2h.iso8583.event.InboundLogonEvent;
 import com.bcad.h2h.iso8583.exception.TransportException;
 import com.bcad.h2h.iso8583.iso.IsoMessage;
 import com.bcad.h2h.iso8583.transport.TcpSocketClient;
@@ -85,6 +86,17 @@ public class NetworkSessionManager {
             log.warn("Echo Test failed - marking session not ready: {}", e.getMessage());
             loggedIn.set(false);
         }
+    }
+
+    /**
+     * Listens for inbound Logon (0800/BIT70=001) from BCA.
+     * When BCA initiates logon and we reply 0810 RC=00, session is considered active.
+     */
+    @EventListener
+    public void onInboundLogon(InboundLogonEvent event) {
+        loggedIn.set(true);
+        log.info("Inbound logon from BCA acknowledged - session marked as ready (STAN={})",
+                event.getMessage().getField(11));
     }
 
     /**

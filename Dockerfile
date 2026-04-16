@@ -1,5 +1,9 @@
 FROM gitlab.dgcpdev.com:5050/framework/middleware/openjdk:21
 
+# Install troubleshooting tools (nmap-ncat for nc, telnet)
+#RUN microdnf install -y nmap-ncat telnet && \
+#     microdnf clean all
+
 # Create a non-root user and group
 RUN groupadd --system --gid 995 appframeworkgroup && \
     useradd --system --create-home --uid 995 --gid appframeworkgroup appframework

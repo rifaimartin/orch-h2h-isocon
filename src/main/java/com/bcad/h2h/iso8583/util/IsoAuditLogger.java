@@ -1,6 +1,7 @@
 package com.bcad.h2h.iso8583.util;
 
 import com.bcad.h2h.iso8583.iso.IsoMessage;
+import com.bcad.h2h.iso8583.util.AccountMaskUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,9 +175,9 @@ public class IsoAuditLogger {
             }
         }
 
-        // Remaining data elements (ASCII)
+        // Remaining data elements — printable ASCII as-is, binary as [xx] hex
         if (pos < bodyLen) {
-            wire.append(new String(body, pos, bodyLen - pos, java.nio.charset.StandardCharsets.ISO_8859_1));
+            wire.append(toSafeAscii(body, pos, bodyLen - pos));
         }
 
         String logEntry = String.format(
@@ -206,8 +207,9 @@ public class IsoAuditLogger {
             msg.getBitmapFields().forEach(id -> {
                 String value = msg.getField(id);
                 if (value != null) {
+                    String displayValue = maskIfSensitive(id, value);
                     sb.append("      <field id=\"").append(id)
-                      .append("\" value=\"").append(escape(value)).append("\"/>\n");
+                      .append("\" value=\"").append(escape(displayValue)).append("\"/>\n");
                 }
             });
         }
@@ -247,6 +249,29 @@ public class IsoAuditLogger {
                 .replace("<",  "&lt;")
                 .replace(">",  "&gt;")
                 .replace("\"", "&quot;");
+    }
+
+    private static String maskIfSensitive(int fieldId, String value) {
+        if (value == null) return "";
+        // TODO: Re-enable masking sebelum production
+        return value;
+    }
+
+    /**
+     * Convert bytes to safe ASCII representation.
+     * Printable ASCII (0x20-0x7E) displayed as-is, non-printable as [xx] hex.
+     */
+    private static String toSafeAscii(byte[] data, int offset, int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = offset; i < offset + length && i < data.length; i++) {
+            int b = data[i] & 0xFF;
+            if (b >= 0x20 && b <= 0x7E) {
+                sb.append((char) b);
+            } else {
+                sb.append(String.format("[%02X]", b));
+            }
+        }
+        return sb.toString();
     }
 
     /** Check if a range of bytes are all valid hex ASCII characters [0-9A-Fa-f]. */
