@@ -39,16 +39,11 @@ public class IsoDecoder {
                         "Buffer too short: expected " + (offset + msgLength) + " but got " + rawData.length);
             }
 
-            // Skip ISO header if configured (e.g. "ISO005000060" = 12 bytes)
-            String isoHeader = properties.getIsoHeader();
-            if (isoHeader != null && !isoHeader.isEmpty()) {
-                int headerLen = isoHeader.length();
-                // Verify header is present
-                if (rawData.length >= offset + headerLen) {
-                    String headerCheck = new String(rawData, offset, 3, StandardCharsets.ISO_8859_1);
-                    if ("ISO".equals(headerCheck)) {
-                        offset += headerLen;
-                    }
+            // Skip BIC ISO External Message Header (12 bytes) if enabled
+            if (properties.isBicHeaderEnabled() && rawData.length >= offset + 12) {
+                String headerCheck = new String(rawData, offset, 3, StandardCharsets.ISO_8859_1);
+                if ("ISO".equals(headerCheck)) {
+                    offset += 12;
                 }
             }
 

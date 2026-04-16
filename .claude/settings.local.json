@@ -37,7 +37,8 @@
       "Bash(tasklist)",
       "Bash(wmic process:*)",
       "Bash(tasklist /fi \"imagename eq Code.exe\" /v)",
-      "Bash(cmd:*)"
+      "Bash(cmd:*)",
+      "Bash(rtk mvn *)"
     ]
   }
 }

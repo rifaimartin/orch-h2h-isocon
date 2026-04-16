@@ -18,7 +18,7 @@ class IsoMessageParserTest {
     @BeforeEach
     void setUp() {
         TcpSocketProperties props = new TcpSocketProperties();
-        props.setIsoHeader(""); // no ISO header for unit tests
+        props.setBicHeaderEnabled(false); // no BIC header for unit tests
         encoder = new IsoEncoder(props);
         decoder = new IsoDecoder(props);
     }
@@ -185,7 +185,7 @@ class IsoMessageParserTest {
     @DisplayName("Encode/decode round-trip WITH ISO header + hex bitmap (BASE24 BCAD)")
     void encodeThenDecodeWithIsoHeader() {
         TcpSocketProperties headerProps = new TcpSocketProperties();
-        headerProps.setIsoHeader("ISO005000060");
+        headerProps.setBicHeaderEnabled(true);
         headerProps.setHexBitmap(true);
         IsoEncoder headerEncoder = new IsoEncoder(headerProps);
         IsoDecoder headerDecoder = new IsoDecoder(headerProps);
@@ -231,7 +231,7 @@ class IsoMessageParserTest {
     @DisplayName("BCA Logon format: ISO0050000600800[hex bitmap]...")
     void bcaLogonFormat() {
         TcpSocketProperties bcaProps = new TcpSocketProperties();
-        bcaProps.setIsoHeader("ISO005000060");
+        bcaProps.setBicHeaderEnabled(true);
         bcaProps.setHexBitmap(true);
         bcaProps.setTerminalId("BCAD0001");
         IsoEncoder bcaEncoder = new IsoEncoder(bcaProps);

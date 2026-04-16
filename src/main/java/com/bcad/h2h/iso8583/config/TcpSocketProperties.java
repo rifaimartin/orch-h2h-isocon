@@ -18,13 +18,13 @@ public class TcpSocketProperties {
     private String bankCode = "501";
 
     /**
-     * ISO 8583 message header (BASE24 TPDU header).
-     * Prepended between length prefix and MTI in the wire format.
-     * Format: "ISO" + version(2) + status(2) + source(3) + dest(3) = 12 bytes.
-     * Example: "ISO005000060"
-     * Set to empty string to disable (e.g., for local simulator).
+     * Enable BIC ISO External Message Header (12 bytes) prepended before MTI.
+     * When true, the header is dynamically generated per MTI type:
+     *   0200 → ISO015000010, 0210 → ISO015000033,
+     *   0800 → ISO005000060, 0810 → ISO005000066.
+     * Set to false to disable (e.g., for local simulator).
      */
-    private String isoHeader = "";
+    private boolean bicHeaderEnabled = false;
 
     /**
      * Whether bitmap is encoded as hex ASCII string (16/32 chars) instead of binary bytes (8/16 bytes).

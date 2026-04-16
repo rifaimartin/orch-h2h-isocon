@@ -80,8 +80,12 @@ class JsonToIsoMapperTest {
 
         // DE32: Acquiring Institution ID (bank code)
         assertEquals("501", msg.getField(32));
-        // DE100: Receiving Institution ID (bank code)
-        assertEquals("501", msg.getField(100));
+        // DE43: Card Acceptor Name/Location (mandatory, 40 chars)
+        assertNotNull(msg.getField(43), "DE43 must be present in 0200");
+        assertEquals(40, msg.getField(43).length(), "DE43 must be exactly 40 chars");
+        // DE15 and DE100 must NOT be in outgoing 0200
+        assertNull(msg.getField(15), "DE15 must not be in 0200 request");
+        assertNull(msg.getField(100), "DE100 must not be in 0200 request");
         // DE48: Additional Data Private
         assertNotNull(msg.getField(48));
         // DE41: Terminal ID padded to 16
@@ -136,7 +140,7 @@ class JsonToIsoMapperTest {
         assertEquals("JANE DOE", parsed.beneficiaryName());
         assertEquals("JOHN DOE", parsed.senderName());
         assertEquals("PAYMENT FOR SERVICES", parsed.description().trim());
-        assertEquals("D", parsed.acquirerIndicator());
+        assertEquals("3", parsed.acquirerIndicator());
     }
 
     @Test

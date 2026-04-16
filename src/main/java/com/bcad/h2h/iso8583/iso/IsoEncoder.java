@@ -25,10 +25,10 @@ public class IsoEncoder {
         try {
             ByteArrayOutputStream body = new ByteArrayOutputStream();
 
-            // Write ISO header if configured (BASE24 TPDU header, e.g. "ISO005000060")
-            String isoHeader = properties.getIsoHeader();
-            if (isoHeader != null && !isoHeader.isEmpty()) {
-                body.write(isoHeader.getBytes(StandardCharsets.ISO_8859_1));
+            // Write BIC ISO External Message Header (12 bytes) based on MTI
+            String bicHeader = buildBicHeader(message.getMti());
+            if (bicHeader != null) {
+                body.write(bicHeader.getBytes(StandardCharsets.ISO_8859_1));
             }
 
             // Write MTI (4 bytes ASCII)
@@ -111,6 +111,36 @@ public class IsoEncoder {
         } catch (IOException e) {
             throw new IsoMessageParseException("Failed to encode ISO message: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Builds 12-byte BIC ISO External Message Header per BCA spec.
+     * Format: BASE24("ISO") + ProductIndicator(2) + Release("50") + Status("000") + Originator(1) + Responder(1)
+     *
+     * 0200 (request):  ISO 01 50 000 1 0 → "ISO015000010"
+     * 0210 (response): ISO 01 50 000 3 3 → "ISO015000033"
+     * 0800 (request):  ISO 00 50 000 6 0 → "ISO005000060"
+     * 0810 (response): ISO 00 50 000 6 6 → "ISO005000066"
+     */
+    private String buildBicHeader(String mti) {
+        if (!properties.isBicHeaderEnabled()) {
+            return null;
+        }
+        String productIndicator;
+        String originatorCode;
+        String responderCode;
+
+        switch (mti) {
+            case "0200" -> { productIndicator = "01"; originatorCode = "1"; responderCode = "0"; }
+            case "0210" -> { productIndicator = "01"; originatorCode = "3"; responderCode = "3"; }
+            case "0800" -> { productIndicator = "00"; originatorCode = "6"; responderCode = "0"; }
+            case "0810" -> { productIndicator = "00"; originatorCode = "6"; responderCode = "6"; }
+            default -> {
+                log.warn("Unknown MTI {} for BIC header, falling back to NMM format", mti);
+                productIndicator = "00"; originatorCode = "6"; responderCode = "0";
+            }
+        }
+        return "ISO" + productIndicator + "50" + "000" + originatorCode + responderCode;
     }
 
     private byte[] encodeField(int fieldNum, FieldDefinition def, String value) throws IOException {

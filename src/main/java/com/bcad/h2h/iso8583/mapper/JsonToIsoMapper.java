@@ -50,16 +50,15 @@ public class JsonToIsoMapper {
         msg.setField(11,  req.getStan() != null ? req.getStan() : stanGenerator.next());
         msg.setField(12,  isoDateTimeUtil.toLocalTime(convertToWib(txnTime)));
         msg.setField(13,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
-        msg.setField(15,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
         msg.setField(17,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
         msg.setField(32,  props.getBankCode());
         msg.setField(35,  buildTrack2(fromAccount));
         msg.setField(37,  req.getRrn() != null ? req.getRrn() : rrnGenerator.next());
         msg.setField(41,  padRight(props.getTerminalId(), 16));
+        msg.setField(43,  buildCardAcceptorNameLocation());
         msg.setField(48,  buildAdditionalData(currency));
         msg.setField(49,  currency);
         msg.setField(60,  getTerminalData(fromAccount));
-        msg.setField(100, props.getBankCode());
         msg.setField(102, req.getFromAccountNo());
         msg.setField(103, req.getToAccountNo());
 
@@ -67,12 +66,13 @@ public class JsonToIsoMapper {
                 null,  // beneficiaryName
                 null,  // senderName
                 null,  // description
-                "D",
-                "I").build();
+                "3",   // acquirerIndicator
+                "0",   // switchIndicator
+                null).build();  // issuerBankCode — not required for inquiry
         msg.setField(126, tokenR1);
 
-        log.info("InquiryRequest fields: 32={}, 35={}, 60={}, 100={}", 
-                msg.getField(32), msg.getField(35), msg.getField(60), msg.getField(100));
+        log.info("InquiryRequest fields: 32={}, 35={}, 60={}",
+                msg.getField(32), msg.getField(35), msg.getField(60));
         log.debug("Mapped InquiryRequest -> {}", msg);
         return msg;
     }
@@ -96,16 +96,15 @@ public class JsonToIsoMapper {
         msg.setField(11,  req.getStan() != null ? req.getStan() : stanGenerator.next());
         msg.setField(12,  isoDateTimeUtil.toLocalTime(convertToWib(txnTime)));
         msg.setField(13,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
-        msg.setField(15,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
         msg.setField(17,  isoDateTimeUtil.toLocalDate(convertToWib(txnTime)));
         msg.setField(32,  props.getBankCode());
         msg.setField(35,  buildTrack2(fromAccount));
         msg.setField(37,  req.getRrn() != null ? req.getRrn() : rrnGenerator.next());
         msg.setField(41,  padRight(props.getTerminalId(), 16));
+        msg.setField(43,  buildCardAcceptorNameLocation());
         msg.setField(48,  buildAdditionalData(currency));
         msg.setField(49,  currency);
         msg.setField(60,  getTerminalData(fromAccount));
-        msg.setField(100, props.getBankCode());
         msg.setField(102, req.getFromAccountNo());
         msg.setField(103, req.getToAccountNo());
 
@@ -113,12 +112,13 @@ public class JsonToIsoMapper {
                 req.getBeneficiaryName(),
                 req.getSenderName(),
                 req.getDescription(),
-                "D",
-                "I").build();
+                "3",                    // acquirerIndicator
+                "0",                    // switchIndicator
+                props.getBankCode()).build();  // issuerBankCode — required for transfer
         msg.setField(126, tokenR1);
 
-        log.info("TransferRequest fields: 32={}, 35={}, 60={}, 100={}, 126={}", 
-                msg.getField(32), msg.getField(35), msg.getField(60), msg.getField(100),
+        log.info("TransferRequest fields: 32={}, 35={}, 60={}, 126={}",
+                msg.getField(32), msg.getField(35), msg.getField(60),
                 msg.getField(126) != null ? "SET" : "NULL");
         log.debug("Mapped TransferRequest -> {}", msg);
         return msg;
@@ -141,6 +141,14 @@ public class JsonToIsoMapper {
         
         log.debug("Mapped NetworkManagement code={} -> {}", networkCode, msg);
         return msg;
+    }
+
+    /**
+     * Builds DE43 Card Acceptor Name/Location (fixed 40 chars).
+     * Pos 1-22: "MOBILE/INTERNET BANKING", Pos 23-40: spaces.
+     */
+    private String buildCardAcceptorNameLocation() {
+        return padRight("MOBILE/INTERNET BANKING", 40);
     }
 
     /** Converts BigDecimal amount to 12-digit zero-padded string (multiply by 100, no decimal). */

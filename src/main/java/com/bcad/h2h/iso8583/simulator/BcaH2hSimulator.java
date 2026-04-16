@@ -305,6 +305,7 @@ public class BcaH2hSimulator {
         switch (mti) {
             case "0200" -> {
                 resp.setMti("0210");
+                resp.setField(2,  req.getField(2));
                 resp.setField(3,  req.getField(3));
                 resp.setField(4,  req.getField(4));
                 resp.setField(7,  now);
@@ -313,10 +314,15 @@ public class BcaH2hSimulator {
                 resp.setField(13, date);
                 resp.setField(15, date);
                 resp.setField(17, date);
+                resp.setField(32, req.getField(32));
+                resp.setField(35, req.getField(35));
                 resp.setField(37, req.getField(37));
                 resp.setField(41, req.getField(41));
                 resp.setField(42, req.getField(42));
+                resp.setField(48, req.getField(48));
                 resp.setField(49, req.getField(49));
+                resp.setField(60, req.getField(60));
+                resp.setField(100, "501");
                 resp.setField(102, req.getField(102));
                 resp.setField(103, req.getField(103));
                 if (req.hasField(126)) resp.setField(126, req.getField(126));

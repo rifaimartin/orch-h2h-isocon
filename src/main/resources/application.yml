@@ -37,7 +37,7 @@ h2h:
     terminal-id: BCAD0001
     merchant-id: "BCADIGITAL001  "
     institution-id: "014"
-    iso-header: "ISO005000060"
+    bic-header-enabled: true
     hex-bitmap: true
 
 logging:
