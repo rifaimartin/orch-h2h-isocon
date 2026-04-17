@@ -23,11 +23,11 @@ public class IsoToJsonMapper {
         String rc     = msg.getField(39);
         String status = responseCodeMapper.mapStatus(rc);
 
-        // DE126 Token R1: beneficiary name occupies first 30 chars
+        // DE126 Token R1: beneficiary name (nama tujuan 1) at offset 25–59 (0-indexed after length prefix stripped)
         String beneficiaryName = "";
         String de126 = msg.getField(126);
-        if (de126 != null && de126.length() >= 30) {
-            beneficiaryName = de126.substring(0, 30).trim();
+        if (de126 != null && de126.length() >= 60) {
+            beneficiaryName = de126.substring(25, 60).trim();
         }
 
         log.info("Mapping 0210 Inquiry RC={} STATUS={} STAN={} RRN={}",

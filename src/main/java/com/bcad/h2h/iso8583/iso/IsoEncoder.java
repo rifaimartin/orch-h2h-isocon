@@ -118,7 +118,7 @@ public class IsoEncoder {
      * Format: BASE24("ISO") + ProductIndicator(2) + Release("50") + Status("000") + Originator(1) + Responder(1)
      *
      * 0200 (request):  ISO 01 50 000 1 0 → "ISO015000010"
-     * 0210 (response): ISO 01 50 000 3 3 → "ISO015000033"
+     * 0210 (response): ISO 01 50 000 1 3 → "ISO015000013"
      * 0800 (request):  ISO 00 50 000 6 0 → "ISO005000060"
      * 0810 (response): ISO 00 50 000 6 6 → "ISO005000066"
      */
@@ -132,7 +132,7 @@ public class IsoEncoder {
 
         switch (mti) {
             case "0200" -> { productIndicator = "01"; originatorCode = "1"; responderCode = "0"; }
-            case "0210" -> { productIndicator = "01"; originatorCode = "3"; responderCode = "3"; }
+            case "0210" -> { productIndicator = "01"; originatorCode = "1"; responderCode = "3"; }
             case "0800" -> { productIndicator = "00"; originatorCode = "6"; responderCode = "0"; }
             case "0810" -> { productIndicator = "00"; originatorCode = "6"; responderCode = "6"; }
             default -> {
