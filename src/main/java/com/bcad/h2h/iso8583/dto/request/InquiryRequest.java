@@ -24,8 +24,8 @@ public class InquiryRequest {
     private String transactionId;
 
     @NotNull(message = "Amount is required")
-    @Positive(message = "Amount must be positive")
-    @Schema(description = "Jumlah transaksi dalam IDR", example = "500000.00")
+//    @Positive(message = "Amount must be positive")
+    @Schema(description = "Jumlah transaksi dalam IDR", example = "0")
     private BigDecimal amount;
 
     @NotBlank(message = "From account number is required")

@@ -264,4 +264,50 @@ class IsoMessageParserTest {
         // LLLVAR "BCAD0001" -> "008BCAD0001"
         assertEquals("008BCAD0001", de123Part, "DE123 format");
     }
+
+    @Test
+    @DisplayName("Bitmap must include bit 43 when field 43 is set (Card Acceptor Name/Location)")
+    void bitmap_shouldIncludeBit43_whenField43IsSet() {
+        TcpSocketProperties bcaProps = new TcpSocketProperties();
+        bcaProps.setBicHeaderEnabled(true);
+        bcaProps.setHexBitmap(true);
+        IsoEncoder bcaEncoder = new IsoEncoder(bcaProps);
+        IsoDecoder bcaDecoder = new IsoDecoder(bcaProps);
+
+        // Build a 0200 with field 43 (mandatory per BCAD spec)
+        IsoMessage msg = new IsoMessage("0200");
+        msg.setField(3, "321000");
+        msg.setField(4, "000200000000");
+        msg.setField(7, "0209071903");
+        msg.setField(11, "367656");
+        msg.setField(12, "141902");
+        msg.setField(13, "0209");
+        msg.setField(17, "0209");
+        msg.setField(37, "250209418689");
+        msg.setField(41, "ABCD1234EFGH5678");
+        msg.setField(43, "MOBILE/INTERNET BANKING                 "); // 40 chars
+        msg.setField(49, "360");
+
+        // Verify field 43 is in getBitmapFields()
+        assertTrue(msg.getBitmapFields().contains(43), "getBitmapFields() must include 43");
+
+        byte[] encoded = bcaEncoder.encode(msg);
+        String wire = new String(encoded, 2, encoded.length - 2, StandardCharsets.ISO_8859_1);
+
+        // Extract primary bitmap hex (after 12-byte BIC header + 4-byte MTI)
+        String primaryBitmapHex = wire.substring(16, 32);
+
+        // Byte 5 of primary bitmap (bits 41-48) must have bit 43 set
+        // Bit 43 → byteIndex=5, bitMask=0x20
+        int byte5 = Integer.parseInt(primaryBitmapHex.substring(10, 12), 16);
+        assertTrue((byte5 & 0x20) != 0,
+                "Bit 43 must be set in primary bitmap byte[5], got: 0x" + String.format("%02X", byte5));
+
+        // Round-trip: decode and verify field 43 comes back
+        IsoMessage decoded = bcaDecoder.decode(encoded);
+        assertNotNull(decoded.getField(43), "DE43 must survive encode/decode round-trip");
+        assertEquals(40, decoded.getField(43).length(), "DE43 must be exactly 40 chars after decode");
+        assertTrue(decoded.getField(43).startsWith("MOBILE/INTERNET BANKING"),
+                "DE43 content must be preserved");
+    }
 }

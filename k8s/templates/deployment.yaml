@@ -68,9 +68,9 @@ spec:
         command:
           - sh
           - -c
-          - >
+          - |
             {{- range .Values.mountHost.mounts }}
-            chown -R {{ $.Values.service.uid }}:{{ $.Values.service.gid }} {{ .pathContainer }} || true;
+            mkdir -p {{ .pathContainer }} && chown -R {{ $.Values.service.uid }}:{{ $.Values.service.gid }} {{ .pathContainer }} && chmod 775 {{ .pathContainer }};
             {{- end }}
         securityContext:
           runAsUser: 0

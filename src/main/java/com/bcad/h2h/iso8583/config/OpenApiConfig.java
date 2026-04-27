@@ -43,8 +43,9 @@ public class OpenApiConfig {
                                 .name("Internal — BCA Digital")
                                 .url("https://www.bluebirdgroup.com")))
                 .servers(List.of(
-                        new Server().url("http://localhost:8080/orch/h2h-isocon").description("Local Development"),
-                        new Server().url("https://dskube-dev.dgcpdev.com/orch/h2h-isocon").description("Internal Service")
+                        new Server().url("http://localhost:8080/orch/h2h-isocon").description("Local"),
+                        new Server().url("https://dskube-dev.dgcpdev.com/orch/h2h-isocon").description("DEV"),
+                        new Server().url("https://dskube-uat.dgcpdev.com/orch/h2h-isocon").description("UAT")
                 ));
     }
 }

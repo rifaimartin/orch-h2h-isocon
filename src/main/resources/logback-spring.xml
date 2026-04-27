@@ -4,7 +4,13 @@
     <springProperty scope="context" name="appName"    source="spring.application.name" defaultValue="h2h-iso8583-bcad"/>
     <springProperty scope="context" name="activeProfile" source="spring.profiles.active" defaultValue="default"/>
 
-    <property name="LOG_DIR"     value="logs"/>
+    <!--
+        LOG_DIR di-override via env var LOG_DIR (set di K8s ConfigMap).
+        Contoh: LOG_DIR=/h2h-isocon/host/log
+        Default "logs" untuk local development.
+        Menggunakan logback native env var syntax (tidak perlu Spring context).
+    -->
+    <property name="LOG_DIR" value="${LOG_DIR:-logs}"/>
     <property name="MAX_SIZE"    value="50MB"/>
     <property name="MAX_HISTORY" value="30"/>
     <property name="TOTAL_CAP"   value="2GB"/>

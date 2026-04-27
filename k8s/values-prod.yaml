@@ -1,6 +1,6 @@
 service:
   port: 8080
-  name: h2h-isocon
+  name: orch-h2h-isocon
   hc: /orch/h2h-isocon/actuator/health
   image: ${CI_REGISTRY_IMAGE}:1.0
   uid: 995
@@ -36,9 +36,9 @@ hpa:
 mountHost:
   apply: true
   mounts:
-    - name: h2h-isocon-log
-      pathContainer: /h2h-isocon/log
-      pathHost: /bdb/k8s/log/h2h-isocon-prod
+    - name: orch-h2h-isocon-log
+      pathContainer: /orch/h2h-isocon/log
+      pathHost: /bdb/k8s/log/orch-h2h-isocon
 mountNAS:
   apply: false
 virtualService:

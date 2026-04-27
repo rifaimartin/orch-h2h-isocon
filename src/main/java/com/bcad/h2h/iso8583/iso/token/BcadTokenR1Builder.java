@@ -61,7 +61,7 @@ public class BcadTokenR1Builder {
         this.senderName        = senderName        != null ? senderName        : "";
         this.description       = description       != null ? description       : "";
         this.acquirerIndicator = acquirerIndicator != null ? acquirerIndicator : "3";
-        this.switchIndicator   = switchIndicator   != null ? switchIndicator   : "0";
+        this.switchIndicator   = switchIndicator   != null ? switchIndicator   : " ";
         this.issuerBankCode    = issuerBankCode    != null ? issuerBankCode    : "";
         this.bankCodeTo        = "014"; // BCA bank code (tujuan)
     }
@@ -90,7 +90,7 @@ public class BcadTokenR1Builder {
                 + padRight("", DESCRIPTION2_LEN)                                   // Description 2 (35)
                 + padRight("", DESCRIPTION3_LEN)                                   // Description 3 (35)
                 + padRight(acquirerIndicator, ACQUIRER_INDICATOR_LEN)              // Acquirer Indicator (1) — must be "3" for BCAD
-                + padRight(switchIndicator, SWITCH_INDICATOR_LEN)                  // Switch Indicator (1) — "0" = debit dan kredit
+                + padRight(switchIndicator, SWITCH_INDICATOR_LEN)                  // Switch Indicator (1) — space per BCA spec
                 + padRight(issuerBankCode, ISSUER_BANK_CODE_LEN)                   // Issuer Bank Code (3)
                 + padRight("", FILLER_LEN);                                        // Filler (17)
 

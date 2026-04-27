@@ -28,8 +28,8 @@ public class InquiryResponse {
     @Schema(description = "Nama penerima dari DE126 Token R1", example = "JANE DOE")
     private String beneficiaryName;
 
-    @Schema(description = "Nama rekening (jika tersedia)", example = "JANE DOE")
-    private String accountName;
+//    @Schema(description = "Nama rekening (jika tersedia)", example = "JANE DOE")
+//    private String accountName;
 
     @Schema(description = "System Trace Audit Number (DE11)", example = "000001")
     private String stan;

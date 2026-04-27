@@ -1,6 +1,6 @@
 service:
   port: 8080
-  name: h2h-isocon
+  name: orch-h2h-isocon
   hc: /orch/h2h-isocon/actuator/health
   image: ${CI_REGISTRY_IMAGE}:1.0
   uid: 995
@@ -34,9 +34,9 @@ hpa:
 mountHost:
   apply: true
   mounts:
-    - name: h2h-isocon-log
-      pathContainer: /h2h-isocon/log
-      pathHost: /bdb/k8s/log/h2h-isocon-dev
+    - name: orch-h2h-isocon-log
+      pathContainer: /orch/h2h-isocon/host/log
+      pathHost: /bdb/k8s/log/orch-h2h-isocon-dev
 mountNAS:
   apply: false
 virtualService:
@@ -50,9 +50,11 @@ adminer:
   defaultServer: ""
 spring:
   profile: ""
+logging:
+  dir: "/orch/h2h-isocon/host/log"
 envFrom:
   configMapRef:
-    name: h2h-isocon
+    name: orch-h2h-isocon
 certificate:
   mountExternal: false
   mountPath: /opt/certificate

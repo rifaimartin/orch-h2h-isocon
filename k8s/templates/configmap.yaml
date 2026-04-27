@@ -10,3 +10,4 @@ data:
   VAULT_SECRET_ID: {{ .Values.vault.secretId | quote }}
   VAULT_URI: {{ .Values.vault.uri | quote }}
   VAULT_APP_NAME: {{ .Values.vault.appName | quote }}
+  LOG_DIR: {{ .Values.logging.dir | quote }}

@@ -73,8 +73,8 @@ class JsonToIsoMapperTest {
         assertEquals("1234567890", msg.getField(102));
         assertEquals("0987654321", msg.getField(103));
 
-        // DE35: Track2 = 0 + BankCode 501 + 12-digit account + =999
-        assertEquals("0501001234567890=999", msg.getField(35));
+        // DE35: Track2 = 0 + BankCode 501 + 12-digit account + =9912
+        assertEquals("0501001234567890=9912", msg.getField(35));
         // DE60: Terminal Data = MOBILE/INTERNET (non-bluGiro)
         assertEquals("MOBILE/INTERNET", msg.getField(60));
 
@@ -86,8 +86,10 @@ class JsonToIsoMapperTest {
         // DE15 and DE100 must NOT be in outgoing 0200
         assertNull(msg.getField(15), "DE15 must not be in 0200 request");
         assertNull(msg.getField(100), "DE100 must not be in 0200 request");
-        // DE48: Additional Data Private
+        // DE48: Additional Data Private – exact 44-char value per BCA spec
         assertNotNull(msg.getField(48));
+        assertEquals(44, msg.getField(48).length(), "DE48 must be exactly 44 chars");
+        assertEquals("A                       40000036000000000001", msg.getField(48), "DE48 must match BCA exact value");
         // DE41: Terminal ID padded to 16
         assertEquals(16, msg.getField(41).length());
 

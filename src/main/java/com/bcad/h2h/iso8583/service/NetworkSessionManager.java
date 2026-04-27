@@ -37,6 +37,13 @@ public class NetworkSessionManager {
 
     private final AtomicBoolean loggedIn = new AtomicBoolean(false);
 
+    /**
+     * Flag that TCP is shutting down. When true, scheduledEchoTest skips execution
+     * and no longer modifies loggedIn state, preventing race condition where echo test
+     * sets loggedIn=false just before destroy() tries to send logoff.
+     */
+    private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
+
     @PostConstruct
     public void init() {
         Thread.ofVirtual().name("session-init").start(() -> {
@@ -54,15 +61,22 @@ public class NetworkSessionManager {
 
     @PreDestroy
     public void destroy() {
-        if (loggedIn.get()) {
+        shuttingDown.set(true);
+
+        // FORCE logoff selama TCP masih terkoneksi, not depended pada state loggedIn.
+        if (tcpSocketClient.isConnected()) {
             try {
+                log.info("Sending Logoff on shutdown (loggedIn={})...", loggedIn.get());
                 networkManagementService.logoff();
-                log.info("Logoff sent on shutdown");
+                log.info("Logoff sent successfully on shutdown");
             } catch (Exception e) {
                 log.warn("Logoff failed on shutdown (ignored): {}", e.getMessage());
             } finally {
                 loggedIn.set(false);
             }
+        } else {
+            log.warn("Skipping logoff on shutdown - TCP not connected");
+            loggedIn.set(false);
         }
     }
 
@@ -72,6 +86,7 @@ public class NetworkSessionManager {
      */
     @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
     public void scheduledEchoTest() {
+        if (shuttingDown.get()) return;  // jangan ubah loggedIn saat shutdown berlangsung
         if (!loggedIn.get()) return;
         try {
             IsoMessage response = networkManagementService.echoTest();

@@ -6,22 +6,22 @@ service:
   uid: 995
   gid: 995
 environment:
-  nodeaffinityKey: orch-uat
+  nodeaffinityKey: orch-dev
   nodeaffinityValue: fund
-  gatewayName: istio-system/dskube-uat-gateway
-  gatewayHost: dskube-uat.dgcpdev.com
-  podantiaffinity: false
-  namespace: fund-uat-orch
+  gatewayName: fund-prod-infra/itds-k8s-gateway
+  gatewayHost: itds-k8s.intra.bcadigital.co.id
+  podantiaffinity: true
+  namespace: fund-prod-h2h
 hpa:
-  minreplicas: 1
-  maxreplicas: 1
-  reqcpu: 300m
-  reqmem: 512Mi
-  limcpu: 1
-  limmem: 2Gi
+  minreplicas: 2
+  maxreplicas: 4
+  reqcpu: 500m
+  reqmem: 1Gi
+  limcpu: 2
+  limmem: 4Gi
   metrics:
     utilizationCPU: 70
-    averageMem: 650Mi
+    averageMem: 1Gi
   behavior:
     scaleUp:
       eval: 150
@@ -36,7 +36,7 @@ mountHost:
   mounts:
     - name: h2h-isocon-log
       pathContainer: /orch/h2h-isocon/host/log
-      pathHost: /bdb/k8s/log/orch-h2h-isocon-uat
+      pathHost: /bdb/k8s/log/orch-h2h-isocon
 mountNAS:
   apply: false
 virtualService:
@@ -46,7 +46,7 @@ hostAliases:
   apply: false
   list: []
 spring:
-  profile: uat
+  profile: prod
 envFrom:
   configMapRef:
     name: orch-h2h-isocon
@@ -56,10 +56,9 @@ certificate:
   files: []
 vault:
   uri: "CHANGE_ME_VAULT_URI"
-  roleId: "CHANGE_ME_UAT_ROLE_ID"
-  secretId: "CHANGE_ME_UAT_SECRET_ID"
-  appName: "h2h-uat/h2h-isocon"
+  roleId: "CHANGE_ME_PROD_ROLE_ID"
+  secretId: "CHANGE_ME_PROD_SECRET_ID"
+  appName: "h2h-prod/h2h-isocon"
 adminer:
   enabled: false
   defaultServer: ""
- 

@@ -96,6 +96,10 @@ public class IsoEncoder {
 
             byte[] bodyBytes = body.toByteArray();
 
+            log.info("=== ENCODED BODY (ASCII) ===");
+            log.info("[{}]", new String(bodyBytes, StandardCharsets.ISO_8859_1));
+            log.info("body length={}", bodyBytes.length);
+
             // Prepend 2-byte big-endian length header
             ByteArrayOutputStream finalMsg = new ByteArrayOutputStream();
             int length = bodyBytes.length;
